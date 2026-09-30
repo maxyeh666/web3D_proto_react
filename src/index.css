@@ -1,0 +1,18 @@
+/* 基底樣式：全螢幕 Canvas 用 */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #16171d;
+  color: #f3f4f6;
+}
+
+#root {
+  width: 100%;
+}
