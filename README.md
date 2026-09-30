@@ -2,7 +2,8 @@
 
 React + Three.js 基礎渲染學習驗證
 
-<!-- TODO: 截圖 / GIF / demo 連結 -->
+<!-- TODO: 截圖 / GIF  -->
+demo 連結 : https://maxyeh666.github.io/web3D_proto_react/
 
 ## Features
 
