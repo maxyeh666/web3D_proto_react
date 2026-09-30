@@ -16,6 +16,11 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/ → 官方文件，想加更多設定可以查這裡。
 export default defineConfig({
+  // base：GitHub Pages 會把網站放在子路徑
+  // https://<user>.github.io/<repo>/，所以要用 repo 名稱當 base，
+  // 否則 build 出來的 /assets/*.js 會變成絕對路徑而 404 白畫面。
+  // 本地 `npm run dev` 不受影響；只有 `npm run build` 會加上前綴。
+  base: '/web3D_proto_react/',
   // plugins：外掛清單。目前只需要 react() 一個。
   // 之後如果要加路徑別名、3D 模型載入器等，都是加在這個陣列裡。
   plugins: [react()],
