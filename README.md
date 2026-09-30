@@ -51,10 +51,19 @@ React + Three.js 基礎渲染學習驗證
 
 ## Project Structure
 
+```text
 src/
-| - App.tsx / main.tsx / index.css
-| - components/Viewer.tsx
-| - components/3d/Scene.tsx / Assets.tsx / Lights.tsx / DebugHelper.tsx
+├── App.tsx
+├── main.tsx
+├── index.css
+└── components/
+    ├── Viewer.tsx
+    └── 3d/
+        ├── Scene.tsx
+        ├── Assets.tsx
+        ├── Lights.tsx
+        └── DebugHelper.tsx
+```
 
 ## Usage
 
