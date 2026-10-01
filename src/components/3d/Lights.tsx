@@ -1,7 +1,7 @@
 
 import { Html } from "@react-three/drei";
 
-type lightProps = {
+type LightProps = {
 	position: [number, number, number];
 	color: string;
 	intensity?: number;
@@ -10,7 +10,7 @@ type lightProps = {
 
 // LightHelper: 光源位置標記（球體 + Html 標籤）
 // group — position: 群組原點，子物件座標相對此點
-function LightHelper({ position, color, label }:lightProps) {
+function LightHelper({ position, color, label }:LightProps) {
 	return(
 		<group position={position}>
 			<mesh>
@@ -30,7 +30,7 @@ function LightHelper({ position, color, label }:lightProps) {
 
 // LightMaker: directionalLight + 位置標記
 // directionalLight — position: 光源位置（指向原點） / intensity: 強度
-function LightMaker({position, color, intensity, label}:lightProps) {
+function LightMaker({position, color, intensity, label}:LightProps) {
 	return (
 		<>
 			<directionalLight position={position} intensity={intensity} />
