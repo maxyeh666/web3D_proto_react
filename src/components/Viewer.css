@@ -18,6 +18,37 @@
 .camera-reset:hover {
     background: #333;
 }
+.asset-save {
+    position: absolute;
+    right: 20px;
+    bottom: 100px;
+    padding: 10px 20px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #1f6feb;
+    color: #fff;
+    cursor: pointer;
+}
+.asset-save:hover {
+    background: #2f81f7;
+}
+.asset-save:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.viewer-status {
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #f3f4f6;
+    font-size: 13px;
+}
+.viewer-status-error {
+    color: #ffb4b4;
+}
 .color-picker {
     position: absolute;
     right: 20px;
