@@ -2,6 +2,22 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。
 
+## 2026-10-04 — Asset id 對齊後端數字主鍵
+
+**背景**
+- 後端 `assets` 資料表已定為 `BIGINT` 自動編號，前端 `id: string` / `"default"` 跟契約對不上，一起改掉。
+
+**變更**
+- 型別：`Asset.id` 改為 `number`（types/asset.ts）
+- 契約：`AssetRepository` 的 `get` / `update` 參數改為 `id: number`（data/assetRepository.ts）
+- 實作：http 拼網址時轉字串；local 的 `DEFAULT_ASSET_ID` 改為 `1`，對齊後端自動編號的第一筆（data/httpAssetRepository.ts、data/localAssetRepository.ts）
+
+**設計決策**
+- `DEFAULT_ASSET_ID = 1` 只是暫時對齊第一筆，之後有多筆資產再補選擇介面（詳見後端 CHANGELOG 2026-10-04）
+
+**已知限制 / 後續**
+- 多筆資產的選擇 / 新增 / 刪除介面尚未補上
+
 ## 2026-10-03 — 前端資料層接縫（Backend Seam）
 
 **背景**

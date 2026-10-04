@@ -9,12 +9,12 @@ async function list(): Promise<Asset[]> {
     return request<Asset[]>("/assets");
 }
 
-async function get(id: string): Promise<Asset> {
-    return request<Asset>(`/assets/${encodeURIComponent(id)}`);
+async function get(id: number): Promise<Asset> {
+    return request<Asset>(`/assets/${encodeURIComponent(String(id))}`);
 }
 
-async function update(id: string, input: AssetInput): Promise<Asset> {
-    return request<Asset>(`/assets/${encodeURIComponent(id)}`, {
+async function update(id: number, input: AssetInput): Promise<Asset> {
+    return request<Asset>(`/assets/${encodeURIComponent(String(id))}`, {
         method: "PUT",
         body: JSON.stringify(input),
     });
