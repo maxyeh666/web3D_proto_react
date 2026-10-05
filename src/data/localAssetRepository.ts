@@ -1,13 +1,13 @@
-import type { Asset, AssetInput } from "../types/asset";
+﻿import type { Asset, AssetInput } from "../types/asset";
 import { defaultConfig } from "../config/view";
 import type { AssetRepository } from "./assetRepository";
 
 // localAssetRepository: 本機資料來源（預設）
-// - 以記憶體保存一筆 id 為 1 的資產，初始值來自 defaultConfig（對齊後端自動編號的第一筆）
+// - 以記憶體保存一筆 id 為 "1" 的資產，初始值來自 defaultConfig（對齊後端自動編號的第一筆）
 // - GH Pages 是純靜態託管，未設定 VITE_API_BASE_URL 時永遠走這裡
 // - 所有方法刻意回傳 Promise，與遠端實作保持相同形狀，方便之後互換
 // - 深拷貝使用原生 structuredClone 而非 lodash：ViewConfig 為純資料，原生 API 已足夠，免依賴（詳見 CHANGELOG 2026-10-03）
-const DEFAULT_ASSET_ID = 1;
+const DEFAULT_ASSET_ID = "1";
 
 let assets: Asset[] = [
     {
@@ -26,7 +26,7 @@ async function list(): Promise<Asset[]> {
     return structuredClone(assets);
 }
 
-async function get(id: number): Promise<Asset> {
+async function get(id: string): Promise<Asset> {
     const found = assets.find((asset) => asset.id === id);
     if (!found) {
         throw new Error(`Asset not found: ${id}`);
@@ -34,7 +34,7 @@ async function get(id: number): Promise<Asset> {
     return structuredClone(found);
 }
 
-async function update(id: number, input: AssetInput): Promise<Asset> {
+async function update(id: string, input: AssetInput): Promise<Asset> {
     const found = assets.find((asset) => asset.id === id);
     if (!found) {
         throw new Error(`Asset not found: ${id}`);

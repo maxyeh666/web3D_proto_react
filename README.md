@@ -52,7 +52,7 @@ Frontend-side:
 
 Backend-side:
 
-- [ ] Asset API（SQL 資料表存模型）
+- [x] Asset API（SQL 資料表存模型）
 - [ ] Load Assets from Backend
 - [ ] Asset CRUD UI
 

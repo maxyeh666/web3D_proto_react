@@ -1,6 +1,25 @@
-# Changelog
+﻿# Changelog
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。
+
+## 2026-10-05 — Asset id 改為字串（對齊 BIGINT）
+
+**背景**
+- 後端 `pg` 讀 `BIGINT` 主鍵一律回傳字串，且 `BIGINT` 可能超出 JS `number` 的安全整數範圍（2^53−1）。2026-10-04 把 id 改成 `number`，會在多一層轉換時留下精度風險。
+
+**變更**
+- 型別：`Asset.id` 改為 `string`（types/asset.ts）
+- 契約：`AssetRepository` 的 `get` / `update` 參數改為 `id: string`（data/assetRepository.ts）
+- 實作：http 不再需要 `String(id)`，直接帶入路徑（data/httpAssetRepository.ts）
+- 實作：`DEFAULT_ASSET_ID` 由 `1` 改為 `"1"`（data/localAssetRepository.ts）
+
+**設計決策**
+- id 一路用字串（後端 JSON → 前端型別 → 網址路徑），與後端契約一致
+- id 是識別碼、不做運算；用字串可避免 BIGINT 轉 number 的精度問題，也為之後換 UUID 留餘地
+- 取代 2026-10-04「Asset id 對齊後端數字主鍵」
+
+**已知限制 / 後續**
+- 多筆資產的選擇 / 新增 / 刪除介面尚未補上
 
 ## 2026-10-04 — Asset id 對齊後端數字主鍵
 
