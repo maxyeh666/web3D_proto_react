@@ -11,10 +11,16 @@ type Asset = {
     updatedAt: string;
 };
 
+// AssetSummary: 列表（list）回傳的輕量形狀，只含辨識欄位（對齊後端）
+type AssetSummary = {
+    id: string;
+    name: string;
+};
+
 // AssetInput: 建立 / 更新資產時由前端提供的欄位
 type AssetInput = {
     name: string;
     config: ViewConfig;
 };
 
-export type { Asset, AssetInput };
+export type { Asset, AssetInput, AssetSummary };

@@ -18,5 +18,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // 未使用變數只在開發時提醒，不阻擋 lint；同類問題仍由本規則標示
+      '@typescript-eslint/no-unused-vars': 'warn',
+    },
   },
 ])

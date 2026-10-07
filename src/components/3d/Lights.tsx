@@ -1,5 +1,5 @@
 
-import { Html } from "@react-three/drei";
+import { Text } from "@react-three/drei";
 
 type LightProps = {
 	position: [number, number, number];
@@ -8,7 +8,7 @@ type LightProps = {
 	label: string;
 }
 
-// LightHelper: 光源位置標記（球體 + Html 標籤）
+// LightHelper: 光源位置標記（球體 + Text 標籤）
 // group — position: 群組原點，子物件座標相對此點
 function LightHelper({ position, color, label }:LightProps) {
 	return(
@@ -20,10 +20,19 @@ function LightHelper({ position, color, label }:LightProps) {
 				<meshBasicMaterial color={color} toneMapped={false} />
 			</mesh>
 
-			{/* Html — distanceFactor: 隨距離縮放係數 / center: 置中對齊 / transform: 是否跟隨 3D 變換 */}
-			<Html distanceFactor={12} center transform={false}>
-				<div style={{ color: 'white', fontSize: 12, pointerEvents: 'none' }}>{label}</div>
-			</Html>
+			{/* Text — 用 troika 直接在場景畫文字，不像 Html 會另開巢狀 React root（避免 React 19 的 unmount 警告）
+			position: 文字位置（球體上方）/ fontSize: 字級 / anchorY: 對齊方式 */}
+			<Text
+				position={[0, 0.5, 0]}
+				color="white"
+				fontSize={0.4}
+				anchorX="center"
+				anchorY="bottom"
+				outlineWidth={0.02}
+				outlineColor="#333333"
+			>
+				{label}
+			</Text>
 		</group>
 	)
 }

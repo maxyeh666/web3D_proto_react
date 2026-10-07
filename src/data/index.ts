@@ -1,5 +1,5 @@
 import { httpAssetRepository } from "./httpAssetRepository";
-import { localAssetRepository } from "./localAssetRepository";
+import { localAssetRepository, DEFAULT_ASSET_ID } from "./localAssetRepository";
 import type { AssetRepository } from "./assetRepository";
 
 // assetRepository: 依環境變數選擇資料來源
@@ -10,5 +10,4 @@ const assetRepository: AssetRepository = import.meta.env.VITE_API_BASE_URL
     ? httpAssetRepository
     : localAssetRepository;
 
-export { assetRepository };
-export { DEFAULT_ASSET_ID } from "./localAssetRepository";
+export { assetRepository, DEFAULT_ASSET_ID };

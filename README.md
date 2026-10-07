@@ -48,20 +48,23 @@ Frontend-side:
 - [x] 資料來源抽象（AssetRepository）
 - [x] Loading / Error handling
 - [x] Save（寫回資料來源）
-- [ ] Connect Asset API（設定 VITE_API_BASE_URL 後才會連到後端）
+- [x] Connect Asset API（設定 VITE_API_BASE_URL 後才會連到後端）
 
 Backend-side:
 
 - [x] Asset API（SQL 資料表存模型）
-- [ ] Load Assets from Backend
-- [ ] Asset CRUD UI
+- [x] Load Assets from Backend
 
 ### Phase 3 — 3D / Application
 
-- [ ] Multiple Assets
+- [ ] Asset 選擇介面（切換檢視多筆）
 - [ ] Asset Information Panel
 - [ ] GLB / glTF
 - [ ] WebSocket / Realtime
+
+## Non-goals
+
+- 新增 / 刪除資產：這是「看模型」的 Viewer，不是「管模型」的後台，資產由資料來源提供。
 
 ## Tech Stack
 
@@ -115,4 +118,4 @@ src/
 
 npm install / npm run dev / npm run build / npm run lint
 
-VITE_API_BASE_URL 沒設定就用存在記憶體的資料；設定後才會去打後端的 /assets（見 .env.example）。
+VITE_API_BASE_URL 沒設定就用存在記憶體的資料；設定後會依序打後端的 `GET /assets`（列表挑一筆）與 `GET /assets/:id`（取完整內容）（見 .env.example）。
