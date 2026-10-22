@@ -1,6 +1,6 @@
 // OrbitControls: 旋轉 / 縮放 / 平移視角
 import { OrbitControls } from "@react-three/drei";
-import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { RefObject } from "react";
 import type { ViewConfig } from "../../types/viewer";
 
