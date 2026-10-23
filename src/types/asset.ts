@@ -9,6 +9,7 @@ type Asset = {
     name: string;
     config: ViewConfig;
     updatedAt: string;
+    modelKey: string;
 };
 
 // AssetSummary: 列表（list）回傳的輕量形狀，只含辨識欄位（對齊後端）

@@ -16,6 +16,7 @@ let assets: Asset[] = [
         name: "Default Cube",
         config: structuredClone(defaultConfig),
         updatedAt: new Date().toISOString(),
+        modelKey: "default-cube"
     },
 ];
 

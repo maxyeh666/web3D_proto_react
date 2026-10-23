@@ -2,6 +2,24 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、學習筆記、已知限制 / 後續。
 
+## 2026-10-23 — Asset 新增 modelKey（對齊後端）
+
+**背景**
+- 後端 `Asset` 回傳形狀新增 `modelKey`（對應模型檔案的 key，Phase 3 切換模型的基礎），前端型別必須同步，否則契約對不上。
+
+**變更**
+- `src/types/asset.ts`：`Asset` 新增 `modelKey: string`（必填）
+- `src/data/localAssetRepository.ts`：local 初始資產補 `modelKey: "default-cube"`（與後端 migration `004` 的回填值一致）；`update()` 以展開運算子保留原有欄位，不需額外處理
+- `src/data/httpAssetRepository.ts`：以 `request<Asset>` 直接吃後端回應，不需改動（後端已回 `modelKey`）
+
+**設計決策**
+- `modelKey` 設為必填而非可選：後端保證每次都回，設必填才能在編譯期（`npm run build` 的 `tsc -b`）抓到漏接的地方；這次就是靠這個機制在本地發現 `localAssetRepository` 沒同步
+- 本地回填值固定 `"default-cube"`：對齊後端既有資料，local 與 remote 看到的是同一筆資產
+
+**已知限制 / 後續**
+- `modelKey` 目前只存著未被使用：真正依 key 載入不同模型是 Phase 3 的 glTF 工作（載入進度、資產選擇介面）
+
+
 ## 2026-10-22 — API 請求逾時與 GET 重試、載入 / 儲存錯誤分離、Retry 與收尾（Error Boundary、CI lint）
 
 **背景**
