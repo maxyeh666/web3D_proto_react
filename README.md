@@ -19,6 +19,7 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - 請求逾時 65 秒；GET 失敗自動重試（最多 3 次、指數退避）
 - 慢速載入提示與 Retry（載入 / 儲存錯誤分開顯示）
 - 全螢幕 Canvas 版型
+- 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save
 
 ## Development Log
 
@@ -51,6 +52,7 @@ Frontend-side:
 - [x] Loading / Error handling
 - [x] Save（寫回資料來源）
 - [x] Connect Asset API（設定 VITE_API_BASE_URL 後才會連到後端）
+- [x] 管理者登入與寫入權限（`App.tsx` + `api/adminToken.ts`；token 存記憶體，重整需重新登入）
 - [x] 逾時 / GET 重試 / 錯誤提示（含 Retry）
 
 Backend-side:
@@ -107,6 +109,7 @@ src/
 ├── index.css
 ├── vite-env.d.ts
 ├── api/
+│   ├── adminToken.ts
 │   └── client.ts
 ├── data/
 │   ├── assetRepository.ts

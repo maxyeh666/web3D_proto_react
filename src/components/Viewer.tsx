@@ -10,7 +10,9 @@ import { ErrorBoundary } from "./ErrorBoundary"
 // Viewer: 全螢幕 Canvas 容器
 // Canvas camera — position: 相機世界座標 / fov: 垂直視角（度）
 // config 來自資料層（local 預設 / 後端 remote），編輯後按 Save 寫回
-export default function Viewer() {
+export default function Viewer(
+    { canSave } : {canSave : boolean}
+) {
     const controlRef = useRef<OrbitControlsImpl | null>(null);
     const { config, setConfig, save, loading, slowLoading, saving, loadError, saveError, retry } = useAssetConfig();
     // 暫時使用cube，多資產後處理
@@ -60,9 +62,11 @@ export default function Viewer() {
                 </div>
             )}
 
-            <button className="asset-save" onClick={save} disabled={loading || saving}>
-                {saving ? "Saving…" : "Save"}
-            </button>
+            { canSave && (
+                <button className="asset-save" onClick={save} disabled={loading || saving}>
+                    {saving ? "Saving…" : "Save"}
+                </button>
+            )}
             <button className="camera-reset" onClick={resetCamera}>
                 Reset Camera
             </button>

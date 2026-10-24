@@ -2,6 +2,37 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、學習筆記、已知限制 / 後續。
 
+## 2026-10-24 — 管理者登入面板（遠端模式）與寫入權限對齊
+
+**背景**
+- 後端 `PUT /assets/:id` 已加上 `requireAdmin`（驗證管理者身分的中介層），前端 Save 沒帶 token，正式環境存檔會被 401（未授權）擋下。
+- remote 模式（有設定 `VITE_API_BASE_URL`）需要登入入口；local 模式（GH Pages 靜態展示）沒有後端也沒有寫入保護，不該出現登入框。
+
+**變更**
+- `src/api/adminToken.ts`（新增）：模組層級變數保存 token，提供 `setAdminToken` / `getAdminToken` / `clearAdminToken`
+- `src/App.tsx`：新增管理者登入面板，只在 `isRemoteDataSource` 為 true 時渲染；密碼輸入 + `POST /auth/login`，成功後存 token 並切換 `isAdmin`，登入中鎖住按鈕、失敗顯示錯誤、提供 Logout；登入按鈕為 `type="submit"`，表單以 `onSubmit` 送出（點擊與 Enter 皆可觸發）
+- `src/data/index.ts`：`isRemoteDataSource` 改為具名匯出，供 App 與 Viewer 共用同一個判斷
+- `src/data/httpAssetRepository.ts`：`update()` 帶上 `Authorization: Bearer <token>`（有 token 才加）
+- `src/components/Viewer.tsx`：新增 `canSave` prop，只有 `!isRemoteDataSource || isAdmin` 時顯示 Save
+
+**設計決策**
+- token 只存記憶體（模組變數），不寫 `localStorage`：原型階段沒有「記住登入」需求，存進瀏覽器會讓 token 在 XSS（跨站腳本：惡意程式碼在別人瀏覽器執行的攻擊）下長期外流；代價是重整頁面要重新登入
+- 登入面板只在 remote 模式渲染：local 模式的 Save 只寫記憶體，沒有任何權限概念，顯示登入框只會讓人誤以為存檔需要密碼
+- Save 顯示條件寫成 `!isRemoteDataSource || isAdmin` 而不是 `isAdmin`：靜態 demo 要能直接按 Save 展示，remote 模式才收斂成需登入
+- 用 `<form onSubmit>` 而不是按鈕 `onClick`：`required` 的原生檢查與 Enter 送出直接可用，語意上也才是「送出一份表單」
+- 登入狀態先留在 `App.tsx` 不拆元件：目前只有一組輸入加一顆按鈕，拆出去只是為了拆而拆；等 Phase 3 有多個面板再抽出 `AdminPanel`
+- 失敗訊息暫留 API 原文（例如 `API 401 ...`）：開發期能分辨是密碼錯還是後端沒開；要對外展示時應改成一句中文
+
+**學習筆記**
+- 問：React 的 `onSubmit` 事件型別該寫 `SubmitEvent` 還是 `FormEvent`？為什麼網路上兩種都看得到，`@types/react` 又標記 `FormEvent` 已棄用？
+
+  答：兩者都是 React 包裝過的事件型別（合成事件：React 為了讓各瀏覽器行為一致，額外包一層的事件物件），差別在精確度。`FormEvent` 是很早期留下的泛稱，`@types/react` 裏直接註明它實際上已不存在並標為棄用；`SubmitEvent` 才是專指「送出表單那一下」，定義為 `SubmitEvent<T> extends SyntheticEvent<T, NativeSubmitEvent>`，第二個型別參數就是瀏覽器原生的 `SubmitEvent`（帶 `submitter`，能知道是哪顆按鈕送出的）。所以接 `onSubmit` 寫 `SubmitEvent<HTMLFormElement>` 最精確；`FormEvent<HTMLFormElement>` 雖然仍能編譯（React 為相容舊程式保留），新程式不該再寫。命名上為了跟瀏覽器原生型別區分，匯入時寫 `type SubmitEvent as ReactSubmitEvent`。
+
+**已知限制 / 後續**
+- token 存記憶體，重整頁面後 `isAdmin` 與 token 都會消失，需重新登入
+- token 15 分鐘後過期，前端不會主動偵測：`isAdmin` 仍為 true，直到按 Save 收到 401 才發現；後續應在 401 時自動清除登入狀態並提示重新登入
+
+
 ## 2026-10-23 — Asset 新增 modelKey（對齊後端）
 
 **背景**
