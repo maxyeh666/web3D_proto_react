@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { ViewConfig } from "../types/viewer";
 import type { Asset } from "../types/asset";
 import { defaultConfig } from "../config/view";
-import { assetRepository } from "../data";
+import { assetRepository, DEFAULT_ASSET_ID } from "../data";
+import { DEFAULT_CUBE_MODEL_KEY } from "../constants/model";
 
 // useAssetConfig: 從列表選一筆資產載入，並管理編輯狀態
 // - 暫時取列表第一筆為展示用資產；之後做多筆選擇介面時，改掉「取第一筆」的挑選即可
@@ -29,8 +30,8 @@ function useAssetConfig() {
         assetRepository
             .list()
             .then((assetList) => {
-                // 暫時取第一筆為展示用資產（TODO: 選擇介面完成後改為使用者挑選）
-                const target = assetList[0];
+                // 暫時根據設定顯示預設ID資產
+                const target = assetList.find((item) => item.id === DEFAULT_ASSET_ID) ?? assetList[0];
                 if (!target) throw new Error("No asset found.");
                 return assetRepository.get(target.id);
             })
@@ -90,7 +91,18 @@ function useAssetConfig() {
         return () => window.clearTimeout(timeoutId);
     }, [loading]);
 
-    return { config, setConfig, save, loading, slowLoading, saving, loadError, saveError, retry };
+    return {
+        config,
+        modelKey: asset?.modelKey ?? DEFAULT_CUBE_MODEL_KEY,
+        setConfig,
+        save,
+        loading,
+        slowLoading,
+        saving,
+        loadError,
+        saveError,
+        retry
+    };
 }
 
 export { useAssetConfig };

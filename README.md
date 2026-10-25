@@ -11,7 +11,7 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - ambientLight + directionalLight + 光源位置標記（Lights.tsx）
 - OrbitControls 視角控制 + Reset Camera
 - axesHelper + gridHelper
-- Color Picker 即時修改 Cube 顏色
+- Color Picker 即時修改顏色（cube 模式改 Cube，glTF 模式改選取的材質）
 - ViewConfig 集中式狀態管理
 - Camera / Asset configuration 分離
 - AssetRepository 資料存取的固定寫法：local（存在記憶體）/ remote（後端 API）可以換（data/、api/）
@@ -20,6 +20,9 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - 慢速載入提示與 Retry（載入 / 儲存錯誤分開顯示）
 - 全螢幕 Canvas 版型
 - 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save
+- glTF 模型載入：依資產的 `modelKey` 向後端 `GET /models/:modelKey` 拿檔；`modelKey` 為 `default-cube` 時顯示內建立方體
+- 模型下載進度：下載中顯示百分比（Canvas 外的 DOM 浮層）
+- 材質面板：列出模型的材質（名稱 / 使用它的 mesh / 貼圖型別），可點選並即時改色
 
 ## Development Log
 
@@ -65,16 +68,17 @@ Backend-side:
 本階段目標：從「顯示單一展示物件」推進到「可切換檢視多筆資產的真實模型」。
 編輯器功能（拖曳 / 縮放物件）不在範圍內，詳見 Non-goals。
 
-- [ ] glTF 模型載入（模型由後端提供；載入失敗退回預設幾何）
-- [ ] 模型載入進度（下載中顯示百分比）
+- [x] glTF 模型載入（模型由後端提供；`modelKey` 為 `default-cube` 時退回內建立方體）
+- [x] 模型載入進度（下載中顯示百分比）
 - [ ] Asset 選擇介面（切換檢視多筆資產）
 - [ ] 切換時的非同步正確性（競態、儲存中鎖定選單、未存變更提示）
 - [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
+- [ ] 輔助顯示切換（格線 / 座標軸 / 光源標記可各自開關）
+- [ ] 模型依 bounding box 對齊原點平面（目前僅置中，底部會沉入格線）
 
 以下為後續優化，未包含在本階段：
 
 - [ ] 手機版型（目前控制項為固定 px 定位）
-- [ ] 格線 / 座標軸顯示切換
 - [ ] 記住上次選擇的資產
 - [ ] Bundle 拆分與載入最佳化
 
@@ -120,20 +124,23 @@ src/
 │   └── useAssetConfig.ts
 ├── types/
 │   ├── viewer.ts
-│   └── asset.ts
+│   ├── asset.ts
+│   └── modelMaterial.ts    ← 材質清單的資料形狀（名稱 / mesh / 貼圖型別 / 顏色）
 ├── config/
 │   ├── view.ts
 │   ├── camera.ts
 │   └── asset.ts
-└── components/
+├── components/
     ├── ErrorBoundary.tsx
-    ├── Viewer.tsx
+    ├── Viewer.tsx             ← 材質面板 + 模型下載進度浮層
     ├── Viewer.css
     └── 3d/
-        ├── Scene.tsx
+        ├── Scene.tsx          ← modelKey 分支：cube 或 glTF；材質上報 + 顏色覆寫
         ├── Assets.tsx
         ├── Lights.tsx
         └── DebugHelper.tsx
+└── constants/
+    └── model.ts               ← 預設模型 key（`default-cube`）
 
 ## Usage
 
@@ -149,9 +156,11 @@ npm run lint
 | 變數 | 說明 | 未設定時 |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | 後端 Asset API 網址 | 使用記憶體資料（local），不打任何網路請求 |
-| `VITE_DEFAULT_ASSET_ID` | local 資料源使用的資產 id | `1` |
+| `VITE_DEFAULT_ASSET_ID` | local 資料源使用的資產 id | `2` |
 
-設定 `VITE_API_BASE_URL` 後：載入為 `GET /assets`（列表取第一筆）→ `GET /assets/:id`（取完整設定），Save 為 `PUT /assets/:id`。
+設定 `VITE_API_BASE_URL` 後：載入為 `GET /assets`（依 `DEFAULT_ASSET_ID` 挑一筆，找不到退回第一筆）→ `GET /assets/:id`（取完整設定），Save 為 `PUT /assets/:id`。
+
+glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
 
 請求失敗的處理：
 

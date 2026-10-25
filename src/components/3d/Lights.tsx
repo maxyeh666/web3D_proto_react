@@ -53,7 +53,7 @@ function Lights () {
 	return (
 		<>
 			{/* ambientLight — intensity: 全域基礎亮度，無方向性 */}
-			<ambientLight intensity={0.05} />
+			<ambientLight intensity={1} />
 
 			{/* 主光：右上方向光 / 補光：左側方向光 */}
 			<LightMaker position={[5, 8, 5]} color="yellow" intensity={2.5} label="main light" />

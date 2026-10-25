@@ -1,6 +1,42 @@
 ﻿# Changelog
 
-開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、學習筆記、已知限制 / 後續。
+開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。學習筆記另外放在 [LEARNING.md](./LEARNING.md)。
+
+## 2026-10-25 — glTF 載入、材質列表與改色
+
+**背景**
+- 後端 `GET /models/:modelKey` 已能上線，真實 glTF 模型終於有穩定出處；資產用 `modelKey` 指到哪個模型，不存絕對 URL。
+- 需求是「看得到模型、知道載到哪、能點材質改色」三件事一次做完：載入、進度、材質面板缺一不可。
+
+**變更**
+- `src/constants/model.ts`（新增）：`DEFAULT_CUBE_MODEL_KEY = "default-cube"`，cube 與 glTF 的分支只認這個值。
+- `src/types/modelMaterial.ts`（新增）：`ModelMaterialInfo`（id / name / meshNames / textureTypes / color），材質清單的資料形狀。
+- `src/components/3d/Scene.tsx`：新增 `ShowModel`，依 url 用 `useGLTF` 載入 glTF；`model` 經 `useMemo` 處理：clone 場景、每 mesh 複製獨立材質、最長邊縮放到 2 單位並置中；`modelKey` 為 `default-cube` 時走內建立方體，否則走 `Suspense` 包住的 `ShowModel`。
+- 材質上報：`model` 變動時 traverse 全場景，用 `material.uuid` 去重，收集名稱 / mesh 名 / 貼圖型別 / 顏色，經 `onMaterialsChange` 傳給 Viewer。
+- 顏色覆寫：`materialColorOverrides` 變動時 traverse 全場景，用 uuid 查表改色（只改記憶體，不寫回後端）。
+- `src/components/Viewer.tsx`：`materials` / `selectMaterialId` 兩組 state + `materialColorOverrides`（`Object.fromEntries` 由材質陣列轉成 uuid→顏色字典）；`useProgress` 追蹤模型檔下載進度（與資產設定 API 的 `loading` 是兩件事）；Cube 顏色選擇器只在 cube 模式顯示。
+- `src/components/Viewer.css`：新增 `.material-panel` / `.material-item` 等材質面板樣式。
+- `src/hooks/useAssetConfig.ts`：回傳值新增 `modelKey`（`asset?.modelKey ?? DEFAULT_CUBE_MODEL_KEY`）；載入改為依 `DEFAULT_ASSET_ID` 找資產，找不到退回第一筆。
+- `src/data/localAssetRepository.ts`：`DEFAULT_ASSET_ID` 預設由 `"1"` 改為 `"2"`；`modelKey` 改用 `DEFAULT_CUBE_MODEL_KEY` 常數。
+- `src/components/3d/Lights.tsx`：`ambientLight` 強度由 `0.05` 調為 `1`（模型模式下場景太暗）。
+
+**設計決策**
+- 材質上報與顏色覆寫是**兩支獨立** `useEffect`，不能合併：合併成一支會讓「改色 → 觸發上報 → 上報的顏色是舊值」形成循環，最後顏色被洗回原始值。分開寫讓資料只往一個方向流：模型 → 上報（一次），顏色 → 覆寫（每次）。
+- `Scene` 內兩個 `clone` 用途不同：第一處 clone（`model` 的 `useMemo`）是「拿到載入結果先複製再調整，避免污染快取」；第二處（`material` 欄位）是「每個 mesh 給獨立材質實體，改一個 mesh 的顏色不影響共用同一材質的其他 mesh」。
+- 顏色型別走過 `as THREE.MeshStandardMaterial` 轉型：`THREE.Material` 基底型別沒有 `color` 與貼圖欄位，不轉就拿不到。
+- `useProgress` 與資產載入的 `loading` 是兩件事：`loading` 是資產設定 API（幾 KB 的 JSON），`useProgress` 追的是 three.js 下載管理器（7.8MB 的模型檔）；進度浮層只在「設定已載入、且 modelKey 不是 cube」時顯示。
+- local 模式（未設 `VITE_API_BASE_URL`）看不到進度條是預期行為：`modelKey` 是 `default-cube`，走內建立方體，根本不載入模型檔。
+
+**學習筆記**
+3 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-25 段。
+
+**已知限制 / 後續**
+- 材質改色不持久化：`ViewConfig` 只有 `camera` 與 `cube.color`，改的材質顏色只存在前端 state，重載就回到原始色。之後若要存，需把材質顏色寫進 config。
+- `KHR_materials_variants` 的三種變體（Beach / Midnight / Street）未做切換 UI，目前只呈現預設變體再改色。
+- `DEFAULT_ASSET_ID = 2` 是暫定對齊測試資料；選擇介面出來後改由使用者挑選。
+- 模型垂直置中而非底部貼 `y=0`：`position` 以 `box.getCenter()` 校正（`Scene.tsx:63`），高度 2 單位的模型有一半沉在格線下（Cube 模式的 `position=[0,1,0]` 沒有這問題）；修正要用 `box.min.y`。
+- 輔助元素（`axesHelper` / `gridHelper` / 光源標記）常駐、無開關：目前寫死在 `Scene.tsx`，尚未提供 UI 切換。
+
 
 ## 2026-10-24 — 管理者登入面板（遠端模式）與寫入權限對齊
 
@@ -24,10 +60,7 @@
 - 失敗訊息暫留 API 原文（例如 `API 401 ...`）：開發期能分辨是密碼錯還是後端沒開；要對外展示時應改成一句中文
 
 **學習筆記**
-- 問：React 的 `onSubmit` 事件型別該寫 `SubmitEvent` 還是 `FormEvent`？為什麼網路上兩種都看得到，`@types/react` 又標記 `FormEvent` 已棄用？
-
-  答：兩者都是 React 包裝過的事件型別（合成事件：React 為了讓各瀏覽器行為一致，額外包一層的事件物件），差別在精確度。`FormEvent` 是很早期留下的泛稱，`@types/react` 裏直接註明它實際上已不存在並標為棄用；`SubmitEvent` 才是專指「送出表單那一下」，定義為 `SubmitEvent<T> extends SyntheticEvent<T, NativeSubmitEvent>`，第二個型別參數就是瀏覽器原生的 `SubmitEvent`（帶 `submitter`，能知道是哪顆按鈕送出的）。所以接 `onSubmit` 寫 `SubmitEvent<HTMLFormElement>` 最精確；`FormEvent<HTMLFormElement>` 雖然仍能編譯（React 為相容舊程式保留），新程式不該再寫。命名上為了跟瀏覽器原生型別區分，匯入時寫 `type SubmitEvent as ReactSubmitEvent`。
-
+1 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-24 段。
 **已知限制 / 後續**
 - token 存記憶體，重整頁面後 `isAdmin` 與 token 都會消失，需重新登入
 - token 15 分鐘後過期，前端不會主動偵測：`isAdmin` 仍為 true，直到按 Save 收到 401 才發現；後續應在 401 時自動清除登入狀態並提示重新登入
@@ -89,33 +122,7 @@
 - 自動化測試不做：型別由 `tsc -b`、契約由後端驗證把關，prototype 階段沒有回歸風險需要測試網保護；若日後要補，優先測 `client.ts` 的重試邏輯（需注意該檔用了 `window.setTimeout`，測試環境要 jsdom）
 
 **學習筆記**
-- 問題：`AbortController` 是什麼？為什麼 `fetch` 需要它才做得出「逾時」？
-
-  答：`fetch`（瀏覽器內建的發請求函式）只負責「送出請求、等回應」，本身沒有「最多等幾秒」的設定；如果伺服器一直不回，Promise 就會一直停在等待狀態。
-
-  `AbortController` 是瀏覽器內建的「取消開關」：`controller.signal` 是掛在請求上的取消訊號線，把它傳給 `fetch`，之後呼叫 `controller.abort()`，這次請求就會立刻中止、改為失敗。
-
-  用 `setTimeout` 當計時器、時間到就 `abort()`，等於自己補上 fetch 沒有的逾時。
-- 問題：為什麼 `fetchWithTimeout` 要監聽呼叫端傳進來的 `signal`，而且 `finally` 還要把它移除？
-
-  答：呼叫端也可能想取消同一個請求（例如元件卸載時），但一次 `fetch` 只吃一個 `signal`，而這個函式已經把自己的 controller 交出去了。
-
-  所以改成「監聽外面那條 signal，它一被中止，就順便中止自己的 controller」，讓兩種取消來源都能生效。
-
-  `finally` 裡的 `removeEventListener` 則是把監聽拆掉：這段程式每送一次請求就執行一次，不拆的話監聽會愈積愈多，久了變成記憶體負擔。
-- 問題：`RequestInit` 到底是什麼？為什麼參數要寫成 `init?: RequestInit`？
-
-  答：`RequestInit` 是 TypeScript 內建（瀏覽器型別定義裡）的型別名稱，用來描述 `fetch` 第二個參數可以放的設定：`method`（GET / PUT 等）、`headers`（要帶的標頭）、`body`（要送出的內容）、`signal`（取消訊號）等。
-
-  `init?:` 的 `?` 表示「可以不傳」，所以只寫 `fetch(url)` 也能用，那種情況預設就是 GET。
-
-  `request()` 裡的 `{ ...init, headers: { ... } }` 是先把呼叫端的設定複製一份、再覆蓋 `headers`，不會改到呼叫端傳進來的原始物件。
-- 問題：呼叫 `abort()` 之後，錯誤是誰接走的？為什麼不會被重試機制吞掉？
-
-  答：`abort()` 會讓 `fetch` 那一行直接丟出錯誤（錯誤名稱是 `AbortError`），所以會進到 `withRetry` 的 `catch`。
-
-  那裡用 `init?.signal?.aborted` 判斷「是不是呼叫端自己要取消的」：是的話就不要再重試，把錯誤原樣往上丟；重試只留給「網路自己出問題、而且還有重試次數」的情況。
-
+4 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-22 段。
 **已知限制 / 後續**
 - 只有文字提示，沒有進度百分比或剩餘時間
 - 儲存失敗不提供重試按鈕，使用者要自己再按一次 Save
@@ -147,28 +154,7 @@
   硬把新增 / 刪除塞進來，使用者會搞不清楚自己到底是在看模型、還是在管理模型庫，定位會糊掉。
 
 **學習筆記**
-- 問：為什麼 `useEffect` 裡用到的函式（例如 `loadAsset`）要先用 `useCallback` 包起來、再放進依賴陣列？直接寫普通的函式不行嗎？
-
-  答：元件每次重新渲染，寫在裡面的函式都會被重新建立、變成「另一個」函式。
-
-  如果把它列進 `useEffect` 的依賴陣列，React 會覺得「依賴每次都變」，於是每次渲染都重跑 effect，變成無限迴圈；但如果乾脆不列，`react-hooks/exhaustive-deps`（ESLint 檢查 effect 依賴有沒有列齊的規則）又會警告「你用了它卻沒列」。
-
-  `useCallback`（幫函式記住身分：內容沒變就不換成新的）能讓同一個函式在重新渲染後仍是同一個身分，這樣既列進依賴、又不會無限重跑，兩邊都滿足，也不用關掉規則。
-- 問：為什麼不能在 `useEffect` 的一開始就直接呼叫 `setLoading(true)`？（`react-hooks/set-state-in-effect` 這條規則在擋什麼？）
-
-  答：這條規則在擋「effect 一進來就同步改 state」的寫法。effect 是在畫面渲染完之後才執行，若一進去又同步設一次 state，React 會立刻再排一次渲染，等於多繞一圈、也多一次沒必要的重繪。
-
-  以本專案來說，`loading` 初始值本來就是 `true`，而載入流程最後的 `.finally()` 一定會把它設回 `false`，所以那句同步的 `setLoading(true)` 是多餘的，直接拿掉即可。
-- 問：為什麼開發模式下瀏覽器的 Network 面板會看到 `GET /assets` 送了兩次、正式打包（build）後卻只送一次？而 `PUT` 又只送一次？
-
-  答：因為 `main.tsx` 包了 `<StrictMode>`。
-
-  StrictMode 在開發模式會故意把每個 effect 走成「掛載 → 清除 → 再掛載」一輪，用來提早抓出沒寫好清除邏輯的程式；負責載入資料的 effect 因此被觸發兩次，`GET` 就跟著送兩次。
-
-  這是開發模式才有的行為，正式打包不會這樣，所以 production 只送一次。
-
-  `PUT` 只送一次，是因為它掛在「使用者按儲存」的事件上、不是掛在 effect，StrictMode 不會去重跑事件處理，自然只發一次。
-
+3 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-07 段。
 **已知限制 / 後續**
 - 目前只編輯預設一筆；多筆資產的選擇介面出現時，再接上 `list()` 摘要
 
@@ -187,17 +173,7 @@
 - 標籤改為世界座標大小，鏡頭拉遠會變小；原本 `<Html distanceFactor>` 是維持固定螢幕大小，如需固定需另外依距離縮放
 
 **學習筆記**
-- 問題：為什麼 React 專案載入時，瀏覽器開發者工具的 Console 會出現「Attempted to synchronously unmount a root while React was already rendering」這條警告？
-
-  答：這是 React 19 在開發模式的提醒。當某段程式在 React「正在渲染 / 提交」的過程中，去卸載另一個 React root 時就會出現。
-
-  本專案的觸發點是 drei 的 `<Html>`：它為了顯示 HTML 內容，會在同一頁另外建立一個獨立的 React root，而移除時是「同步」卸載，被 React 偵測到。改用畫在場景內的 3D 文字 `<Text>`（不會另開 root）後，警告就消失了。
-- 問題：為什麼畫面明明是第一次載入，開發模式卻好像在「卸載」東西、觸發這個警告？
-
-  答：因為 `main.tsx` 用了 `<StrictMode>`。StrictMode 在開發模式會故意把每個 effect 執行成「先掛載、再清除、再掛載一次」，用來提早抓出沒寫好清除邏輯的程式。
-
-  那個「清除」正好讓 drei `<Html>` 觸發一次同步卸載，所以第一次開頁面也會看到警告。
-
+2 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-07 段。
 ## 2026-10-05 — Asset id 改為字串（對齊 BIGINT）
 
 **背景**
@@ -254,11 +230,7 @@
 - 資料是普通的陣列 / 數字 / 字串，直接用瀏覽器和 Node 內建的 `structuredClone` 深拷貝，不用額外裝 lodash 的 `cloneDeep`；也讓安裝的套件和打包體積少一點
 
 **學習筆記**
-- `structuredClone` 是瀏覽器和 Node 內建的深拷貝做法，以前大家習慣用 lodash 的 `_.cloneDeep`；資料單純時用它就夠了
-- `request` 的 `<T>` 是泛型佔位符：使用時填入 `Asset` / `Asset[]` / `void` 就得到對應型別
-- C# 也有泛型（`List<T>` / `Dictionary<TKey, TValue>`），概念跟 TS 的 `<T>` 一樣；C# 的 `dynamic` 類似 TS 的 `any`（都是關掉編譯期的型別檢查），現代 C# 只有在 COM 互操作、舊式動態 JSON、`ViewBag` 等情況才會看到，新程式能免則免
-- TS 的 `any`、C# 的 `dynamic`、Java 的 `Object` 轉型，都是繞過型別檢查的寫法：知道有這些就好，平常少用；本專案一律不用 `any`
-
+4 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-03 段。
 **已知限制 / 後續**
 - remote 還沒有真正的後端可以接；`list` 目前沒有介面在使用，先留著等後端
 - 之後後端可以存多筆模型時，再補選擇 / 新增 / 刪除的介面
