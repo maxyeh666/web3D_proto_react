@@ -20,7 +20,7 @@
 }
 .asset-save {
     position: absolute;
-    right: 20px;
+    right: 10px;
     bottom: 100px;
     padding: 10px 20px;
     border: 1px solid #444;
@@ -39,25 +39,16 @@
 .viewer-status {
     position: absolute;
     left: 20px;
-    top: 20px;
+    bottom: 20px;
+    z-index: 20;
     padding: 6px 12px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.6);
     color: #f3f4f6;
-    font-size: 13px;
+    font-size: 12px;
 }
 .viewer-status-error {
     color: #ffb4b4;
-}
-.color-picker {
-    position: absolute;
-    right: 20px;
-    bottom: 60px;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
 }
 .asset-retry {
     margin-left: 10px;
@@ -71,14 +62,13 @@
 .asset-retry:hover {
     background: #333;
 }
-
 .material-panel {
     position: absolute;
     top: 16px;
     left: 16px;
     z-index: 10;
     width: 260px;
-    max-height: calc(100% - 32px);
+    max-height: calc(100% - 60px);
     overflow-y: auto;
     box-sizing: border-box;
     padding: 16px;
@@ -89,19 +79,16 @@
     font-family: sans-serif;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
-
 .material-panel h3 {
     margin: 0 0 12px;
     font-size: 16px;
     font-weight: 600;
 }
-
 .material-panel p {
     margin: 8px 0;
     color: #a1a1aa;
     font-size: 13px;
 }
-
 .material-item {
     display: flex;
     flex-direction: column;
@@ -120,27 +107,102 @@
         background 0.15s ease,
         border-color 0.15s ease;
 }
-
 .material-item:hover {
     background: #3f3f46;
     border-color: #71717a;
 }
-
 .material-item.selected {
     background: #272f43;
     border-color: #60a5fa;
     box-shadow: inset 3px 0 0 #60a5fa;
 }
-
 .material-item strong {
     font-size: 13px;
     font-weight: 600;
     overflow-wrap: anywhere;
 }
-
 .material-item small {
     color: #a1a1aa;
     font-size: 11px;
     line-height: 1.5;
     overflow-wrap: anywhere;
+}
+.appearance-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.appearance-panel h4 {
+    margin: 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #d4d4d8;
+}
+.material-editor {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid #3f3f46;
+    font-size: 12px;
+}
+.material-editor input[type="color"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.material-editor input[type="color"] {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 36px;
+    padding: 2px;
+    border: 1px solid #52525b;
+    border-radius: 6px;
+    background: #27272a;
+    cursor: pointer;
+}
+.helper-toggle {
+    position: absolute;
+    right: 20px;
+    bottom: 60px;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background: #222;
+    color: #fff;
+    cursor: pointer;
+}
+.helper-toggle:hover {
+    background: #333;
+}
+@media (max-width: 600px) {
+    .material-panel{
+        top: 10px;
+        left: 10px;
+        width: min(260px, calc(100% - 20px));
+        max-height: min(55vh, calc(100% - 100px));
+        padding: 12px;
+    }
+    .material-item {
+        padding: 10px;
+    }
+    .helper-toggle {
+        right: 10px;
+        bottom: 60px;
+        padding: 8px 10px;
+    }
+    .viewer-status {
+        top: auto;
+        right: 10px;
+        bottom: 148px;
+        left: 10px;
+        min-width: calc(100% - 44px);
+        overflow-wrap: anywhere;
+    }
+    .asset-save,
+    .camera-reset {
+        padding: 10px 12px;
+    }
 }

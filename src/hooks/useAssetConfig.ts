@@ -21,6 +21,7 @@ function useAssetConfig() {
     const config: ViewConfig = asset?.config ?? defaultConfig;
 
     // 把新的 config 寫回 asset
+    // 注意如果退回前端預設模型因為缺少設定(null)會導致改色無效
     const setConfig = (updater: (prev: ViewConfig) => ViewConfig) => {
         setAsset((prev) => (prev ? { ...prev, config: updater(prev.config) } : prev));
     };

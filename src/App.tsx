@@ -15,6 +15,7 @@ function App() {
 	const [password, setPassword] = useState("");
 	const [loggingIn, setLoggingIn] = useState(false);
 	const [loginError, setLoginError] = useState<string | null>(null);
+	const [showAdminPanel, setShowAdminPanel] = useState(false);
 	// 只有管理員登入，先不拆元件處裡
 	async function handleLogin(event: ReactSubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
@@ -46,32 +47,42 @@ function App() {
 
 	return (
 		<div className="app-shell">
-			{ isRemoteDataSource && (
-				isAdmin ? (
-					<div className="admin-panel">
-						<span className="admin-label">Admin MODE</span>
-						<button type="button" onClick={handleLogout}>Logout</button>
-					</div>
-				) : (
-					<form className="admin-panel" onSubmit={handleLogin}>
-						<input
-							type="password"
-							value={password}
-							placeholder='Admin password'
-							aria-label='Admin password'
-							autoComplete='current-password'
-							required
-							onChange={(event) => { setPassword(event.target.value) }}
-						/>
-						<button type="submit" disabled={loggingIn}>
-							{ loggingIn ? "Logging in..." : "Login" }
-						</button>
-
-						{ loginError && (
-							<span role="alert">{ loginError }</span>
-						)}
-					</form>
-				)
+			{isRemoteDataSource && (
+				<div className={`admin-area ${showAdminPanel ? "admin-area--open" : ""}`}>
+					<button
+						type="button"
+						className="admin-toggle"
+						aria-expanded={showAdminPanel}
+						onClick={() => setShowAdminPanel((open) => !open)}
+					>
+						{showAdminPanel ? "Close" : isAdmin ? "Admin" : "Login"}
+					</button>
+					{isAdmin ? (
+							<div className="admin-panel">
+								<span className="admin-label">Admin MODE</span>
+								<button type="button" onClick={handleLogout}>Logout</button>
+							</div>
+						) : (
+							<form className="admin-panel" onSubmit={handleLogin}>
+								<input
+									type="password"
+									value={password}
+									placeholder='Admin password'
+									aria-label='Admin password'
+									autoComplete='current-password'
+									required
+									onChange={(event) => { setPassword(event.target.value) }}
+								/>
+								<button type="submit" disabled={loggingIn}>
+									{ loggingIn ? "Logging in..." : "Login" }
+								</button>
+	
+								{ loginError && (
+									<span role="alert">{ loginError }</span>
+								)}
+							</form>
+					)}
+				</div>
 			)}
 			<Viewer canSave={!isRemoteDataSource || isAdmin}/>
 		</div>

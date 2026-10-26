@@ -2,6 +2,38 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。學習筆記另外放在 [LEARNING.md](./LEARNING.md)。
 
+## 2026-10-26 — 材質槽改寫、Appearance 面板整合、輔助元素開關與手機版調整
+
+**背景**
+- 10-25 的材質面板按材質 uuid 合併：一個材質被多個 mesh 共用時只顯示一列，點哪一列、改到哪裡不易對應；且 cube 模式的顏色選擇器與 glTF 材質面板是兩套介面，做的卻是「改外觀」同一件事。
+- 後端沒開時面板看似可用、實際改色無效（`setConfig` 對 `null` 資產不執行任何動作），載入錯誤又被面板遮住，使用者看不到原因；格線 / 座標軸 / 光源標記常駐顯示，無法隱藏；窄螢幕下控制項仍是桌機版固定定位。
+
+**變更**
+- `src/components/3d/Scene.tsx`：材質收集改為「材質槽」（一個 mesh 的一個材質 = 一個 slot），id 用 `${mesh.uuid}:${materialIndex}`；上報與改色共用同一份 `materialSlots`，上報時直接送 `slot.info`，不再另建一次。
+- `src/components/Viewer.tsx`：cube 顏色選擇器與 glTF 材質面板合併為同一個「Appearance」面板；新增 `canEditConfig`（`!loading && !loadError`），資產未載入時輸入框鎖住並顯示唯讀提示；材質選取改為渲染期推導 `effectiveSelectedId`（失效時退回第一筆）；新增 `showHelper` 開關。
+- `src/components/Viewer.css`：面板樣式整合為 `.appearance-panel`；`.viewer-status` 移到左下並加 `z-index: 20`（先前被面板 `z-index: 10` 蓋住）；`<=600px` 媒體查詢調整面板與控制項位置、狀態訊息移到下方；刪除 `.color-picker` 舊樣式與重複的 `.asset-save` / `.camera-reset` 規則。
+- `src/components/3d/Lights.tsx`：`LightMaker` 新增 `showMarkers`（是否顯示光源位置標記），由 `Scene` 依 `showHelper` 傳入；格線與座標軸由 `DebugHelper` 同步開關。
+- `src/App.tsx` / `src/App.css`：管理面板改為收合式（窄螢幕下按鈕開關，桌機維持常開）；補回 `.admin-panel` 遺失的 `display: flex` 四行（密碼框與登入鈕曾垂直堆疊）。
+- `src/index.css`：3D 背景（body）由 `#16171d` 改為 `#36373e`（Canvas 透明，直接透出此色）。
+
+**設計決策**
+- 材質槽 id 用 `${mesh.uuid}:${materialIndex}` 而非材質 uuid：模型檔常把同一材質重用給多個 mesh（例如鞋面與鞋底），用材質 uuid 會合併成一列、改色時整批一起動；per-mesh 拆開後每列只影響一個 mesh，符合「點哪列改哪裡」的預期。代價是 uuid 每次載入重建，id 只在本次瀏覽有效，不可持久化。
+- 上報與改色共用同一份 `materialSlots`：`Scene` 內只算一次 id，上報給 Viewer 的就是改色用的 key，避免「兩處各算一次、改一邊忘一邊」造成靜默對不上。
+- 選取失效用渲染期推導而非 `useEffect` 同步：`eslint-plugin-react-hooks` 的 `react-hooks/set-state-in-effect`（禁止在 effect 內同步呼叫 setState 的規則）在本專案為 error，直接在 effect 內 `setState` 會使 `npm run lint` 失敗；推導版本只有一份真相，不多一次渲染。
+- `canEditConfig` 定義為 `!loading && !loadError`：後端沒開（`asset === null`）時 `setConfig` 不執行任何動作，與其讓使用者拖動顏色卻沒反應，不如鎖住輸入框並明示唯讀。
+- `.viewer-status` 從左上移到左下並加 `z-index: 20`：桌機上它與 `.material-panel`（`top:16 / left:16 / z-index:10`）完全重疊，錯誤訊息被蓋住；左下目前沒有其他浮層。
+- 輔助開關做成總開關而非各自獨立：目前只有「檢視模型時清乾淨」的需求，拆三個開關是多餘的 UI；之後需要再拆。
+
+**學習筆記**
+1 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-26 段。
+
+**已知限制 / 後續**
+- 材質改色不持久化：`ViewConfig` 只有 `camera` 與 `cube.color`，改色只存在前端 state；換模型或重新載入後材質槽重建，回到原始色（10-25 已記，id 改為 slot 後行為相同）。
+- `meshNames` 已無實質意義：每列只對應一個 mesh，恆為單一元素；目前保留型別不動，之後可簡化為單一 `meshName`。
+- 手機版仍是固定 px 定位：媒體查詢只調整位置與尺寸，未改用流動版面（README 已標註進度）。
+- 管理面板登入成功後不會自動收合（手機版仍顯示 Admin MODE，需手動關閉）。
+
+
 ## 2026-10-25 — glTF 載入、材質列表與改色
 
 **背景**

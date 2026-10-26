@@ -7,6 +7,8 @@ type LightProps = {
 	intensity?: number;
 	label: string;
 }
+// showMarkers 由外層決定：Lights 可省略（預設 false），LightMaker 收到的一定是布林值
+type LightMakerProps = LightProps & { showMarkers: boolean };
 
 // LightHelper: 光源位置標記（球體 + Text 標籤）
 // group — position: 群組原點，子物件座標相對此點
@@ -39,25 +41,38 @@ function LightHelper({ position, color, label }:LightProps) {
 
 // LightMaker: directionalLight + 位置標記
 // directionalLight — position: 光源位置（指向原點） / intensity: 強度
-function LightMaker({position, color, intensity, label}:LightProps) {
+function LightMaker({ position, color, intensity, label, showMarkers }: LightMakerProps) {
 	return (
 		<>
 			<directionalLight position={position} intensity={intensity} />
 
-			<LightHelper position={position} color={color} label={label}/>
+			{showMarkers && <LightHelper position={position} color={color} label={label} />}
 		</>
 	)
 }
 
-function Lights () {
+function Lights ({ showMarkers = false }: { showMarkers?: boolean }) {
 	return (
 		<>
 			{/* ambientLight — intensity: 全域基礎亮度，無方向性 */}
 			<ambientLight intensity={1} />
 
-			{/* 主光：右上方向光 / 補光：左側方向光 */}
-			<LightMaker position={[5, 8, 5]} color="yellow" intensity={2.5} label="main light" />
-			<LightMaker position={[-4, 3, 2]} color="green" intensity={0.5} label="secondary light" />
+			{/* 主光：右上方向光 */}
+			<LightMaker 
+				position={[5, 8, 5]}
+				color="yellow"
+				intensity={2.5}
+				label="main light"
+				showMarkers={showMarkers}
+			/>
+			{/* 補光：左側方向光 */}
+			<LightMaker
+				position={[-4, 3, 2]}
+				color="green"
+				intensity={0.5}
+				label="secondary light"
+				showMarkers={showMarkers}
+			/>
 		</>
 	)
 }

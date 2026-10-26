@@ -11,7 +11,7 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - ambientLight + directionalLight + 光源位置標記（Lights.tsx）
 - OrbitControls 視角控制 + Reset Camera
 - axesHelper + gridHelper
-- Color Picker 即時修改顏色（cube 模式改 Cube，glTF 模式改選取的材質）
+- Appearance 面板：cube 模式改 Cube 顏色，glTF 模式列出材質並改選取項目的顏色（同一面板；資產未載入時為唯讀）
 - ViewConfig 集中式狀態管理
 - Camera / Asset configuration 分離
 - AssetRepository 資料存取的固定寫法：local（存在記憶體）/ remote（後端 API）可以換（data/、api/）
@@ -19,10 +19,12 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - 請求逾時 65 秒；GET 失敗自動重試（最多 3 次、指數退避）
 - 慢速載入提示與 Retry（載入 / 儲存錯誤分開顯示）
 - 全螢幕 Canvas 版型
-- 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save
+- 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save；窄螢幕下面板可收合
 - glTF 模型載入：依資產的 `modelKey` 向後端 `GET /models/:modelKey` 拿檔；`modelKey` 為 `default-cube` 時顯示內建立方體
 - 模型下載進度：下載中顯示百分比（Canvas 外的 DOM 浮層）
-- 材質面板：列出模型的材質（名稱 / 使用它的 mesh / 貼圖型別），可點選並即時改色
+- 材質面板：以材質槽為單位列出（一個 mesh 的一個材質 = 一列，同名材質自動加序號），顯示名稱 / mesh / 貼圖型別，可點選並即時改色
+- 輔助顯示開關：格線 / 座標軸 / 光源標記一鍵顯示或隱藏
+- 窄螢幕（<=600px）排版：控制項與外觀面板重新定位、狀態訊息移到畫面下方
 
 ## Development Log
 
@@ -73,12 +75,13 @@ Backend-side:
 - [ ] Asset 選擇介面（切換檢視多筆資產）
 - [ ] 切換時的非同步正確性（競態、儲存中鎖定選單、未存變更提示）
 - [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
-- [ ] 輔助顯示切換（格線 / 座標軸 / 光源標記可各自開關）
+- [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
+- [ ] 輔助顯示各自獨立開關（格線 / 座標軸 / 光源標記分開控制）
 - [ ] 模型依 bounding box 對齊原點平面（目前僅置中，底部會沉入格線）
 
 以下為後續優化，未包含在本階段：
 
-- [ ] 手機版型（目前控制項為固定 px 定位）
+- [ ] 手機版型（已加 600px 媒體查詢與管理者面板收合；控制項仍為固定 px 定位）
 - [ ] 記住上次選擇的資產
 - [ ] Bundle 拆分與載入最佳化
 
@@ -132,12 +135,12 @@ src/
 │   └── asset.ts
 ├── components/
     ├── ErrorBoundary.tsx
-    ├── Viewer.tsx             ← 材質面板 + 模型下載進度浮層
+    ├── Viewer.tsx             ← Appearance 面板 + 模型下載進度浮層 + 狀態列
     ├── Viewer.css
     └── 3d/
-        ├── Scene.tsx          ← modelKey 分支：cube 或 glTF；材質上報 + 顏色覆寫
+        ├── Scene.tsx          ← modelKey 分支：cube 或 glTF；材質槽上報 + 顏色覆寫
         ├── Assets.tsx
-        ├── Lights.tsx
+        ├── Lights.tsx         ← 光源 + 標記開關（showMarkers）
         └── DebugHelper.tsx
 └── constants/
     └── model.ts               ← 預設模型 key（`default-cube`）
@@ -160,7 +163,7 @@ npm run lint
 
 設定 `VITE_API_BASE_URL` 後：載入為 `GET /assets`（依 `DEFAULT_ASSET_ID` 挑一筆，找不到退回第一筆）→ `GET /assets/:id`（取完整設定），Save 為 `PUT /assets/:id`。
 
-glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
+glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）；材質槽的 id 由 mesh UUID 組成，換模型或重新載入後會重建，畫面回到模型原始色。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
 
 請求失敗的處理：
 
