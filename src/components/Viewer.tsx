@@ -41,7 +41,7 @@ export default function Viewer(
     const modelProgressPercent = Math.round(modelProgress) || 0;
     // 暫時使用cube，多資產後處理
     const cubeConfig = config.cube;
-    // 選中的材質槽可能因換模型而失效（id 綁 mesh uuid）：失效時退回第一條。
+    // 選中的材質槽可能因換模型而失效（id 由模型節點路徑組成，換模型就整組重算）：失效時退回第一條。
     // 不用 effect 同步 state —— eslint 的 react-hooks/set-state-in-effect 會擋，且會造成連鎖渲染
     const effectiveSelectedId = materials.some(material => material.id === selectedMaterialId)
         ? selectedMaterialId
@@ -106,7 +106,7 @@ export default function Viewer(
                                         >
                                             <strong>{material.name}</strong>
                                             <small>
-                                                Mesh: {material.meshNames.join(", ") || "No match mesh"}
+                                                Mesh: {material.meshName}
                                             </small>
                                             <small>
                                                 Texture: {material.textureTypes.join(", ") || "N/A"}

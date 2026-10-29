@@ -1,4 +1,4 @@
-
+import { Suspense } from "react";
 import { Text } from "@react-three/drei";
 
 type LightProps = {
@@ -7,14 +7,16 @@ type LightProps = {
 	intensity?: number;
 	label: string;
 }
-// showMarkers 由外層決定：Lights 可省略（預設 false），LightMaker 收到的一定是布林值
+// showMarkers 由外層決定：LightMaker 收到的一定是布林值
 type LightMakerProps = LightProps & { showMarkers: boolean };
+// visible 由外層決定：LightHelper 收到的一定是布林值
+type LightHelperProps = LightProps & { visible: boolean };
 
 // LightHelper: 光源位置標記（球體 + Text 標籤）
 // group — position: 群組原點，子物件座標相對此點
-function LightHelper({ position, color, label }:LightProps) {
+function LightHelper({ position, color, label, visible }: LightHelperProps) {
 	return(
-		<group position={position}>
+		<group position={position} visible={visible}>
 			<mesh>
 				{/* sphereGeometry args: [半徑, 寬段數, 高段數] */}
 				<sphereGeometry args={[0.25, 16, 16]} />
@@ -46,19 +48,24 @@ function LightMaker({ position, color, intensity, label, showMarkers }: LightMak
 		<>
 			<directionalLight position={position} intensity={intensity} />
 
-			{showMarkers && <LightHelper position={position} color={color} label={label} />}
+			{/* Text 首次掛載要抓字型，會 suspend（掛起等非同步資源）。邊界必須放在這裡：
+				若落到 Canvas 內建的 Suspense，R3F 會把整個場景設為 visible=false（含模型）→ 模型隨之短暫消失。
+				標記常駐掛載、用 visible 開關：字型在頁面載入時就緒，之後切換僅變更屬性，耗時可忽略 */}
+			<Suspense fallback={null}>
+				<LightHelper position={position} color={color} label={label} visible={showMarkers} />
+			</Suspense>
 		</>
 	)
 }
 
-function Lights ({ showMarkers = false }: { showMarkers?: boolean }) {
+function Lights({ showMarkers }: { showMarkers: boolean }) {
 	return (
 		<>
 			{/* ambientLight — intensity: 全域基礎亮度，無方向性 */}
 			<ambientLight intensity={1} />
 
 			{/* 主光：右上方向光 */}
-			<LightMaker 
+			<LightMaker
 				position={[5, 8, 5]}
 				color="yellow"
 				intensity={2.5}

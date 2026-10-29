@@ -77,7 +77,7 @@ Backend-side:
 - [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
 - [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
 - [ ] 輔助顯示各自獨立開關（格線 / 座標軸 / 光源標記分開控制）
-- [ ] 模型依 bounding box 對齊原點平面（目前僅置中，底部會沉入格線）
+- [x] 模型依 bounding box 對齊原點平面（最長邊縮放至 2 單位、底部貼齊 y=0 格線）
 
 以下為後續優化，未包含在本階段：
 
@@ -163,7 +163,7 @@ npm run lint
 
 設定 `VITE_API_BASE_URL` 後：載入為 `GET /assets`（依 `DEFAULT_ASSET_ID` 挑一筆，找不到退回第一筆）→ `GET /assets/:id`（取完整設定），Save 為 `PUT /assets/:id`。
 
-glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）；材質槽的 id 由 mesh UUID 組成，換模型或重新載入後會重建，畫面回到模型原始色。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
+glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）；材質槽的 id 由模型節點路徑組成（例：`Shoe[0]/Sole[0]:material[0]`），同一份模型重新載入時不變，換模型則整組重算、畫面回到模型原始色。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
 
 請求失敗的處理：
 

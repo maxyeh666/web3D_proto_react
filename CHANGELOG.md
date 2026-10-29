@@ -2,6 +2,33 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。學習筆記另外放在 [LEARNING.md](./LEARNING.md)。
 
+## 2026-10-29 — 材質槽 id 改為節點路徑、輔助元素改常駐掛載
+
+**背景**
+- 10-26 的材質槽 id 用 `${mesh.uuid}:${materialIndex}`：uuid 由 three.js 在每次建立物件時生成，同一份模型重載或換模型後整組 id 都變，材質面板的選取狀態與顏色覆寫無法跨載入沿用。
+- 輔助元素（光源標記）原本用條件渲染開關（`{showHelper && <LightMaker … />}`），第一次開啟時 `Text` 才開始載入字型、觸發 suspend；suspend 的邊界若落到 Canvas 內建的 Suspense，R3F 會把整個場景設為 `visible = false`，模型隨之短暫消失。
+
+**變更**
+- `src/components/3d/Scene.tsx`：新增 `getStableNodeSegment` / `getStableMeshPath`，材質槽 id 改為 `<節點路徑>:material[<序號>]`（例：`Shoe[0]/Sole[0]:material[0]`）；序號只跟同層同名兄弟比（同層新增其他名稱的節點不影響既有 id），節點名用 `encodeURIComponent` 跳脫（序號是純數字不跳脫），路徑不含載入容器。`MaterialSlot.material` 型別改為 `THREE.Material & { color?: THREE.Color }`，改色改用 `material.color?.set()`。模型垂直位置改為底部貼齊 `y=0`。
+- `src/components/3d/DebugHelper.tsx` / `src/components/3d/Lights.tsx`：輔助元素改為常駐掛載、以 `visible` 屬性開關（`DebugHelper` 的 prop 由 `showMarkers` 改為 `visible`，內部用 `<group visible>`；`Lights` 的 `showMarkers` 由選填改必填），移除外層條件渲染；`Suspense` 邊界留在 `LightMaker` 內。
+- `src/components/Viewer.tsx`：材質面板 `Mesh:` 欄位直接輸出 `meshName`，移除已無法觸發的 `No match mesh` fallback。
+- `src/types/modelMaterial.ts`：`meshNames: string[]` 改為 `meshName: string`（10-26 記錄的「`meshNames` 已無實質意義」於本日完成）。
+
+**設計決策**
+- id 用節點路徑而非 uuid：同一份模型重載時節點樹相同、路徑必然相同，選取與顏色覆寫才有機會跨載入沿用（真正持久化仍需後端支援，見已知限制）。代價是 id 變長，且換模型後整組 id 仍會不同——不同模型的節點樹本來就不同。
+- 輔助元素改常駐掛載、用 `visible` 開關：條件渲染會讓 `Text` 每次開啟都重新掛載，第一次必定 suspend；常駐後排版與字型在頁面載入時就完成，之後切換僅變更屬性，耗時可忽略。代價是沒開啟輔助元素的使用者也要付一次 troika 初始化，該成本在可接受範圍。
+- `Suspense` 邊界刻意留在 `LightMaker` 內、不靠 Canvas 內建那一層：R3F 在 Canvas 內建 Suspense 觸發時會把整個場景設為不可見（含模型），邊界下移到標記本身後，suspend 期間只有標記缺席。完整機制見 LEARNING.md 的 2026-10-29 段。
+- 模型底部貼齊 `y=0`：格線在 `y=0`，模型原本以原點為中心、底部會落到格線下方；貼齊後「站在地面上」較符合檢視習慣。
+
+**學習筆記**
+2 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-29 段。
+
+**已知限制 / 後續**
+- 換模型後 id 整組不同：顏色覆寫存在 `Viewer` 的 state、以 id 為 key，換模型即失效。行為與 10-26 相同，差別在失效原因從「uuid 重建」變成「節點樹不同」。
+- `OrbitControls` 的 target 仍是原點：底部貼齊 `y=0` 後，旋轉是繞模型底面而不是模型中心；目前模型高度約 2，差異不明顯，後續可將 target 設為 bounding box 中心，或改為繞底部旋轉並說明用途。
+- 材質收集只認 `THREE.Mesh`（含 `SkinnedMesh` / `InstancedMesh`），不含 `Line` / `Points` / `Sprite`：glTF 的三角形圖元不會產生這些物件；真要支援還要一併處理材質屬性差異（`LineBasicMaterial` 沒有 `normalMap` 等）與面板標示，屬於新需求。
+- `<primitive object={model}>` 的 clone 材質與幾何沒有顯式 `dispose()`：切回 cube 模型後 clone 出來的材質仍留在記憶體，單一模型切換的洩漏量可忽略，多模型輪替時要補清理。
+
 ## 2026-10-26 — 材質槽改寫、Appearance 面板整合、輔助元素開關與手機版調整
 
 **背景**
