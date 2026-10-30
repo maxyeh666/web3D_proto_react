@@ -2,6 +2,46 @@
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。學習筆記另外放在 [LEARNING.md](./LEARNING.md)。
 
+## 2026-10-30 — 材質顏色存回後端、資產選擇器、GLB 載入失敗的 Retry
+
+**背景**
+- 10-29 的材質改色只存在前端 state，按 Save 不會寫回後端，重新載入就消失。
+- 作品集近期終點要求「切得動資產、存得住設定」，但資產選擇介面（Phase 3）尚未實作。
+- GLB 載入失敗後按 Retry 無效：`suspend-react` 把錯誤快取住，且載入與清除各自組 URL 字串，`useGLTF.clear()` 清不到同一個 key。
+- 慢速提示文案寫著「Service starting, please wait...」，但切換資產同樣會啟動 5 秒計時，文案會誤導成「後端重啟中」。
+
+**變更**
+- `src/types/viewer.ts`：新增 `ModelConfig`（`materialColorOverrides: Record<string, string>`，key 為材質槽 id、值為 `#rrggbb`）；`ViewConfig` 新增 `model` 欄位。
+- `src/config/view.ts`：`defaultConfig` 補上 `model: { materialColorOverrides: {} }`；`normalizeViewConfig` 在 `model` 缺失時補預設（遠端舊資料沒有該欄位）。
+- `src/hooks/useAssetConfig.ts`：新增 `assetList` / `pendingAssetId` / `setPendingAssetId` / `loadSelectedAsset`（選擇器未選或選同一筆直接略過，避免重複請求）；初始載入、Save 回傳、切換資產三處都呼叫 `normalizeViewConfig`。`setConfig` 在 `asset` 為 `null` 時為 no-op（載入失敗、config 退回 defaultConfig，沒有可寫入目標）。
+- `src/components/Viewer.tsx`：`setMaterialColor` 把覆寫寫進 `config.model`，`resetMaterialColor` 複製後 `delete` 該 key（回到原色）；新增資產 `<select>` + Load Asset（載入中、未選、選同一筆時鎖定）；材質面板在異常時鎖定編輯；新增 GLB 錯誤橫幅（條件見設計決策 4）；`retryModel` 改用 `getModelUrl` 同一字串清除快取並遞增 `modelRetryKey`；慢速提示改為「Still loading… the backend may be waking up. Please wait.」。
+- `src/components/3d/Scene.tsx`：新增 `ModelErrorBoundary`（class component；`getDerivedStateFromError` 收錯誤、`componentDidCatch` 記日誌），`key` 綁 `modelKey:modelRetryKey`，fallback 用 cube 顯示當前顏色；`MaterialSlot` 新增 `originalColor`（取不到 `color` 的材質用 `#555555`，不再寫死 `#ffffff`）；套色改為 `materialColorOverrides[id] ?? originalColor`，有覆寫用覆寫、沒有用 GLB 原色。
+- `src/data/localAssetRepository.ts`：改為兩筆示範資產（Default Cube / Blue Cube，id 預設 `"2"` / `"3"`，以 `VITE_DEFAULT_ASSET_ID` 覆寫其中之一）；深拷貝續用 `structuredClone`。
+- `src/constants/model.ts`：`getModelUrl` / `isDefaultCubeModel` 為 URL 與模式判斷的單一來源；Scene 與 Viewer 的 Retry 共用同一輸出。
+- `src/components/Viewer.css`：新增 `.asset-selector`（標籤 + 下拉 + 按鈕直排，鎖定時半透明）與 `.material-editor button` 圓角。
+
+**設計決策**
+- 覆寫表採用稀疏表而非整包顏色：缺 key 即代表用 GLB 原色，Reset 只需刪 key；整包存會混雜「使用者改過的」與「模型原本的」，模型換版本時整包顏色反而會蓋掉新原色。
+- 後端 `model` 欄位設為可省略、但出現即嚴格驗：設必填會讓既有舊資料在部署後全部被 400；完全放行則錯誤值靜默進 DB，直到前端套色才失敗。寫入時由後端補預設值，讀取端永遠拿到完整形狀。
+- `modelError` 同時記錄 `assetId` 與 `modelKey`：只有一組錯誤 state，切換資產或模型後舊錯誤會殘留，等於顯示不存在於當前畫面的錯誤；條件式要求兩者都等於當前值才顯示。
+- `Retry` 必須用同一個 URL 字串：`useGLTF` 的快取 key 是「載入器 + url」參數陣列，字串不同清不到，快取的重拋錯誤會讓 Retry 永遠無效。
+- 錯誤橫幅加 `!loading`：切換資產的載入期間不該閃出上一筆的錯誤；`canEditConfig` 同理維持 `!loading && !loadError`。
+- `originalColor` 記在 slot 上、無 `color` 材質用 `#555555`：面板要能顯示「目前實際顏色」又不污染 GLB 原值；寫回 `#ffffff` 會讓免改色槽的顯示值與實際渲染（灰色）不一致。
+
+**學習筆記**
+10 則，見 [LEARNING.md](./LEARNING.md) 的 2026-10-30 段。
+
+**已知限制 / 後續**
+- 切換資產不會套用該資產的 `camera`：fiber 的 `camera` prop 只在 Canvas 初始化時建立 PerspectiveCamera，之後改 `config.camera` 不會更新畫面；目前得按 Reset Camera。要自動套用得用 key 重建 Canvas（會重載模型）或在 Scene 內用 `useThree` + `useEffect` 同步。
+- 材質覆寫跨模型失效：覆寫 key 是節點路徑，換模型整組重算；即使 Save 已把覆寫寫回後端，切到別的模型仍對不上。
+- 選擇器沒有「未儲存變更」警告：切換資產前未 Save 的編輯會被直接蓋掉。
+- 後端資料庫目前只有 1 筆資產：remote 模式的選擇器只有一個選項，要展示多筆需新增 seed 資產。
+- 載入失敗時 `asset` 維持上一筆成功值（只在成功時 `setAsset`），`currentAssetId` 也維持舊值；錯誤僅由 `loadError` 呈現。
+- 無障礙缺口：3D 畫布本身無鍵盤操作（OrbitControls 只吃滑鼠，鍵盤無法旋轉視角）；按下 Retry 後焦點留在原地而非移往新的狀態。另材質槽清單用 `aria-pressed` 表達單選屬於折衷，嚴格做法是 `role="radiogroup"` + `role="radio"` 並以方向鍵切換。
+
+---
+
+
 ## 2026-10-29 — 材質槽 id 改為節點路徑、輔助元素改常駐掛載
 
 **背景**

@@ -3,19 +3,34 @@ import { defaultConfig } from "../config/view";
 import type { AssetRepository } from "./assetRepository";
 import { DEFAULT_CUBE_MODEL_KEY } from "../constants/model";
 
-// localAssetRepository: 本機資料來源（預設）
-// - 以記憶體保存一筆 id 為 "1" 的資產，初始值來自 defaultConfig（對齊後端自動編號的第一筆）
-// - GH Pages 是純靜態託管，未設定 VITE_API_BASE_URL 時永遠走這裡
+// localAssetRepository: 本機資料來源（本機未設定 VITE_API_BASE_URL 時使用）
+// - 以記憶體保存兩筆示範資產（Default Cube / Blue Cube），讓資產選擇器有東西可切
+// - 初始值皆來自 defaultConfig；id 預設為 "2" / "3"，可用 VITE_DEFAULT_ASSET_ID 覆寫
 // - 所有方法刻意回傳 Promise，與遠端實作保持相同形狀，方便之後互換
-// - 深拷貝使用原生 structuredClone 而非 lodash：ViewConfig 為純資料，原生 API 已足夠，免依賴（詳見 CHANGELOG 2026-10-03）
-// App 預設編輯的資產 id，TODO:暫時先調整為ID = 2，多資產後進一步處理
+// - 深拷貝使用原生 structuredClone 而非 lodash：ViewConfig 為純資料，原生 API 已足夠，免依賴
+// 預設載入的資產 id：對齊後端自動編號，兩筆都只存在記憶體
 const DEFAULT_ASSET_ID = import.meta.env.VITE_DEFAULT_ASSET_ID ?? "2";
+// 第二筆示範資產的 id：刻意避開 DEFAULT_ASSET_ID，確保選擇器一定有兩個選項
+const SECONDARY_ASSET_ID = DEFAULT_ASSET_ID === "2" ? "3" : "2";
 
 let assets: Asset[] = [
     {
         id: DEFAULT_ASSET_ID,
         name: "Default Cube",
         config: structuredClone(defaultConfig),
+        updatedAt: new Date().toISOString(),
+        modelKey: DEFAULT_CUBE_MODEL_KEY
+    },
+    {
+        id: SECONDARY_ASSET_ID,
+        name: "Blue Cube",
+        config: {
+            ...structuredClone(defaultConfig),
+            cube: {
+                ...defaultConfig.cube,
+                color: "#4f8cff"
+            }
+        },
         updatedAt: new Date().toISOString(),
         modelKey: DEFAULT_CUBE_MODEL_KEY
     },
@@ -52,7 +67,6 @@ async function update(id: string, input: AssetInput): Promise<Asset> {
     return structuredClone(updated);
 }
 
-// localAssetRepository: 本機資料來源（單筆記憶體資產，未設定 VITE_API_BASE_URL 時使用）
 const localAssetRepository: AssetRepository = { list, get, update };
 
 export { localAssetRepository, DEFAULT_ASSET_ID };

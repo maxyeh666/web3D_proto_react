@@ -162,6 +162,12 @@
     background: #27272a;
     cursor: pointer;
 }
+.material-editor button {
+    border-radius: 6px;
+}
+.material-editor button:disabled {
+    color: #9a9a9d;
+}
 .helper-toggle {
     position: absolute;
     right: 20px;
@@ -176,6 +182,34 @@
 }
 .helper-toggle:hover {
     background: #333;
+}
+.asset-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #3f3f46;
+}
+.asset-selector label {
+    font-size: 12px;
+}
+.asset-selector select,
+.asset-selector button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #52525b;
+    border-radius: 6px;
+    background: #27272a;
+    color: #f4f4f5;
+}
+.asset-selector button {
+    cursor: pointer;
+}
+.asset-selector button:disabled,
+.asset-selector select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 @media (max-width: 600px) {
     .material-panel{

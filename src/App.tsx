@@ -16,7 +16,7 @@ function App() {
 	const [loggingIn, setLoggingIn] = useState(false);
 	const [loginError, setLoginError] = useState<string | null>(null);
 	const [showAdminPanel, setShowAdminPanel] = useState(false);
-	// 只有管理員登入，先不拆元件處裡
+	// 管理員登入先留在 App，之後有第二個地方要用再抽成 hook
 	async function handleLogin(event: ReactSubmitEvent<HTMLFormElement>) {
 		event.preventDefault();
 

@@ -22,7 +22,8 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save；窄螢幕下面板可收合
 - glTF 模型載入：依資產的 `modelKey` 向後端 `GET /models/:modelKey` 拿檔；`modelKey` 為 `default-cube` 時顯示內建立方體
 - 模型下載進度：下載中顯示百分比（Canvas 外的 DOM 浮層）
-- 材質面板：以材質槽為單位列出（一個 mesh 的一個材質 = 一列，同名材質自動加序號），顯示名稱 / mesh / 貼圖型別，可點選並即時改色
+- 資產選擇器：下拉選單 + Load Asset，切換檢視多筆資產（local 模式有兩筆示範資產；remote 模式依後端列表）
+- 材質改色寫回資產設定：改色存在 `config.model.materialColorOverrides`，Save 後重新整理仍保留；Reset Color 刪掉該筆回到 GLB 原色
 - 輔助顯示開關：格線 / 座標軸 / 光源標記一鍵顯示或隱藏
 - 窄螢幕（<=600px）排版：控制項與外觀面板重新定位、狀態訊息移到畫面下方
 
@@ -72,7 +73,7 @@ Backend-side:
 
 - [x] glTF 模型載入（模型由後端提供；`modelKey` 為 `default-cube` 時退回內建立方體）
 - [x] 模型載入進度（下載中顯示百分比）
-- [ ] Asset 選擇介面（切換檢視多筆資產）
+- [x] Asset 選擇介面（下拉選單 + Load Asset；切換時載入中鎖定選單，且不套用該資產的 camera，需按 Reset Camera，屬已知限制）
 - [ ] 切換時的非同步正確性（競態、儲存中鎖定選單、未存變更提示）
 - [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
 - [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
@@ -159,14 +160,14 @@ npm run lint
 | 變數 | 說明 | 未設定時 |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | 後端 Asset API 網址 | 使用記憶體資料（local），不打任何網路請求 |
-| `VITE_DEFAULT_ASSET_ID` | local 資料源使用的資產 id | `2` |
+| `VITE_DEFAULT_ASSET_ID` | local 資料源預設載入的資產 id（另一筆示範資產固定為另一個 id） | `2` |
 
 設定 `VITE_API_BASE_URL` 後：載入為 `GET /assets`（依 `DEFAULT_ASSET_ID` 挑一筆，找不到退回第一筆）→ `GET /assets/:id`（取完整設定），Save 為 `PUT /assets/:id`。
 
-glTF 模式的材質改色只作用於畫面，不會寫回 Asset config（`ViewConfig` 只有 `camera` 與 `cube.color`）；材質槽的 id 由模型節點路徑組成（例：`Shoe[0]/Sole[0]:material[0]`），同一份模型重新載入時不變，換模型則整組重算、畫面回到模型原始色。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
+glTF 模式的材質改色寫回 Asset config（`config.model.materialColorOverrides`，材質槽 id → `#rrggbb` 的稀疏表；沒有改過色的槽不存，缺 key 代表用 GLB 原色）；同一份模型重新載入時不變，換模型則整組重算、畫面回到模型原始色。模型資產（`MaterialsVariantsShoe.glb`）由後端提供，來源與授權見後端 repo 的 `models/ATTRIBUTION.md`。
 
 請求失敗的處理：
 
 - 逾時 65 秒，時間到即中止請求（`src/api/client.ts`）
 - 只有 GET 會重試：連線錯誤或回應 408 / 429 / 500 / 502 / 503 / 504 時重試，最多 3 次、間隔 1 秒 / 2 秒；PUT 不重試，避免重複寫入
-- 載入超過 5 秒顯示「Service starting」提示（涵蓋後端冷啟動）；載入失敗顯示錯誤與 Retry，儲存失敗單獨顯示、不提供 Retry
+- 載入超過 5 秒顯示慢速提示（「Still loading… the backend may be waking up.」涵蓋後端冷啟動；切換資產同樣會啟動計時）；載入失敗顯示錯誤與 Retry，儲存失敗單獨顯示、不提供 Retry

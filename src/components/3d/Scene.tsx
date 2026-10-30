@@ -1,15 +1,25 @@
-// OrbitControls: 旋轉 / 縮放 / 平移視角
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import { Suspense, useMemo, useEffect, type RefObject } from "react";
+import {
+	Component,
+	Suspense,
+	useMemo,
+	useEffect,
+	type RefObject,
+	type ReactNode,
+	type ErrorInfo
+} from "react";
 import * as THREE from "three";
 
 import type { ViewConfig } from "../../types/viewer";
 import { Cube } from "./Assets";
 import Lights from "./Lights";
 import DebugHelper from "./DebugHelper";
-import { DEFAULT_CUBE_MODEL_KEY } from "../../constants/model";
+import { getModelUrl, isDefaultCubeModel } from "../../constants/model";
 import type { ModelMaterialInfo } from "../../types/modelMaterial";
+
+// 沒有 color 的材質（例如 ShaderMaterial）用它當面板顯示值與 Reset 目標
+const FALLBACK_MATERIAL_COLOR = "#555555"
 
 type ShowModelProps = {
 	url: string;
@@ -23,13 +33,16 @@ type SceneProps = {
 	modelKey: string;
 	materialColorOverrides: Record<string, string>;
 	showHelper: boolean;
+	modelRetryKey: number;
 	onMaterialsChange?: (materials: ModelMaterialInfo[]) => void;
+	onModelError: (error: Error) => void;
 };
 // 一個「材質槽」= 某個 mesh 的第 N 個材質，也就是面板上的一列
 type MaterialSlot = {
 	id: string;
 	// glTF 載入的標準材質都有 color；ShaderMaterial 之類沒有，用可選屬性表示
 	material: THREE.Material & { color?: THREE.Color };
+	originalColor: string;
 	info: ModelMaterialInfo;
 };
 
@@ -68,6 +81,38 @@ function getStableMeshPath(
 	}
 
 	return segments.join("/");
+}
+
+// 模型錯誤處理型別
+type ModelErrorBoundaryProps = {
+	children: ReactNode;
+	fallback: ReactNode;
+	onError: (error: Error) => void;
+}
+
+type ModelErrorBoundaryState = {
+	error: Error | null;
+}
+// 錯誤邊界組件
+class ModelErrorBoundary extends Component<ModelErrorBoundaryProps, ModelErrorBoundaryState> {
+	state: ModelErrorBoundaryState = {error: null};
+	static getDerivedStateFromError(
+		error: Error
+	): ModelErrorBoundaryState {
+		return { error }
+	}
+
+	componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+		console.error("GLB loading failed:", error, errorInfo.componentStack)
+	}
+
+	render(): ReactNode {
+		if (this.state.error) {
+			return this.props.fallback
+		}
+
+		return this.props.children
+	}
 }
 
 // ShowModel：依 url 載入 glTF → 正規化顯示 → 上報材質給面板 → 套用改色（只改記憶體）
@@ -126,10 +171,11 @@ function ShowModel({ url, materialColorOverrides, onMaterialsChange }: ShowModel
 
 			meshMaterials.forEach((material, materialIndex) => {
 				// 讀貼圖欄位用：基底 Material 型別沒有 map / roughnessMap / aoMap 這些屬性
-				// 讀貼圖欄位用：基底 Material 型別沒有 map / roughnessMap / aoMap 這些屬性
 				const mat = material as THREE.MeshStandardMaterial;
 				// id 用路徑而非 uuid（原因見 getStableMeshPath），同 mesh 多材質時再補序號
 				const id = `${meshPath}:material[${materialIndex}]`;
+				// 原始GLB顏色
+				const originalColor = mat.color ? `#${mat.color.getHexString()}` : FALLBACK_MATERIAL_COLOR;
 
 				const textureTypes = [
 					mat.map && "Color",
@@ -142,10 +188,10 @@ function ShowModel({ url, materialColorOverrides, onMaterialsChange }: ShowModel
 
 				// 一個 mesh 可能有多個材質（geometry group）；同名時補序號才分得出來
 				const suffix = meshMaterials.length > 1 ? ` #${materialIndex + 1}` : "";
-
 				slots.push({
 					id,
 					material,
+					originalColor,
 					info: {
 						id,
 						name: `${mat.name || "(unnamed material)"}${suffix}`,
@@ -153,7 +199,7 @@ function ShowModel({ url, materialColorOverrides, onMaterialsChange }: ShowModel
 						meshName,
 						textureTypes,
 						// 不是每種材質都有 color（例如 ShaderMaterial）
-						color: mat.color ? `#${mat.color.getHexString()}` : "#ffffff"
+						color: originalColor
 					}
 				})
 			})
@@ -161,40 +207,60 @@ function ShowModel({ url, materialColorOverrides, onMaterialsChange }: ShowModel
 
 		return slots;
 	}, [model]);
-	// 上報：材質槽變動（換模型 / 重新載入）時做一次
+	// 上報：材質槽或覆寫設定變動時，把「目前實際顏色」回報給面板（有覆寫用覆寫，沒有用原色）
 	useEffect(() => {
-		onMaterialsChange?.(materialSlots.map(slot => slot.info));
-	}, [materialSlots, onMaterialsChange]);
-	// 顏色：只改記憶體、不存檔也不寫回後端
+		onMaterialsChange?.(
+			materialSlots.map(slot => ({
+				...slot.info,
+				color: materialColorOverrides[slot.id] ?? slot.originalColor
+			}))
+		);
+	}, [materialSlots, materialColorOverrides, onMaterialsChange]);
+	// 套用覆寫顏色：有覆寫用覆寫、沒有就用 GLB 原色；只寫進材質，不動 config
 	// 合併成一支會變成「改色 → 上報 → 上報的顏色是舊值 → 洗回原色」
 	useEffect(() => {
-		for (const { id, material } of materialSlots) {
-			const color = materialColorOverrides[id];
-			if (!color) continue;
+		for (const slot of materialSlots) {
+			const color = materialColorOverrides[slot.id] ?? slot.originalColor
 
-			material.color?.set(color);
+			slot.material.color?.set(color);
 		}
 	}, [materialSlots, materialColorOverrides]);
 	// primitive是Three.js用來掛載物件的標籤
 	return <primitive object={model} />;
 }
 
-// Scene: 場景組合 — Cube / Lights / DebugHelper / OrbitControls
-function Scene({ controlRef, config, modelKey, materialColorOverrides, showHelper, onMaterialsChange } : SceneProps) {
-	const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL)?.replace(/\/$/, "") ?? "";
-	const modelUrl = `${apiBaseUrl}/models/${encodeURIComponent(modelKey)}`;
+// Scene: 場景組合 — Cube(fallback/預設模型) / Lights / DebugHelper / OrbitControls
+function Scene({
+		controlRef,
+		config,
+		modelKey,
+		materialColorOverrides,
+		showHelper,
+		modelRetryKey,
+		onMaterialsChange,
+		onModelError
+	} : SceneProps) {
+	const modelUrl = getModelUrl(modelKey);
 
 	return (
 		<>
-			{modelKey === DEFAULT_CUBE_MODEL_KEY ? (
+			{isDefaultCubeModel(modelKey) ? (
 					// 2x2x2 立方體，底部貼齊 y=0 格線
 					<Cube color={config.cube.color} />
 				) : (
-					// 後端GLB/GLTF模型
-					// 載入中的提示在 Viewer 的 DOM 浮層（Canvas 內只能放 3D 物件），這裡不給 fallback
-					<Suspense fallback={null}>
-						<ShowModel url={modelUrl} onMaterialsChange={onMaterialsChange} materialColorOverrides={materialColorOverrides} />
-					</Suspense>
+					<ModelErrorBoundary
+						// key 綁 modelKey + modelRetryKey：換模型或按 Retry 都重建邊界，
+						// 否則 boundary 會留著上一次的 error state，畫面永遠停在 fallback
+						key={`${modelKey}:${modelRetryKey}`}
+						fallback={<Cube color={config.cube.color} />}
+						onError={onModelError}
+					>
+						{/* 後端GLB/GLTF模型
+						載入中的提示在 Viewer 的 DOM 浮層（Canvas 內只能放 3D 物件），這裡不給 fallback */}
+						<Suspense fallback={null}>
+							<ShowModel url={modelUrl} onMaterialsChange={onMaterialsChange} materialColorOverrides={materialColorOverrides} />
+						</Suspense>
+					</ModelErrorBoundary>
 				)
 			}
 
