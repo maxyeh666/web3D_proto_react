@@ -1,4 +1,4 @@
-# 學習筆記（前端）
+﻿# 學習筆記（前端）
 
 > 這裡記錄實作過程中搞懂的概念，一問一答：問題寫成脫離對話也看得懂的完整句子。
 > 對應的程式變更與設計理由見 [CHANGELOG.md](./CHANGELOG.md)。
@@ -10,6 +10,31 @@
 - **瀏覽器 API 與網路請求** — 10-22
 - **TypeScript** — 10-24、10-25、10-30
 - **無障礙（ARIA 與鍵盤操作）** — 10-30
+- **Open Graph / 分享預覽** — 11-01
+
+---
+
+## 2026-11-01 — Open Graph 分享預覽的運作方式
+
+- 問：把網址貼到社群平台或通訊軟體時，預覽卡片的標題、描述與縮圖是從哪裡取得的？
+
+  答：由平台的爬蟲（自動抓取網頁內容的程式）在連結被貼上時即時讀取 HTML `<head>` 裡的 meta 標籤，再據此產生卡片。這組標籤的規格稱作 Open Graph（常簡稱 OG），2010 年由 Facebook 提出，後來成為各家平台共用的慣例：`og:title` 決定卡片標題、`og:description` 決定描述、`og:image` 決定縮圖、`og:url` 決定卡片指向的網址。
+
+  頁面沒有這些標籤時，平台會退回自己的猜測規則：以 `<title>` 當標題、取頁面開頭一段文字當描述、找頁面中第一張夠大的圖當縮圖。本專案原本只有 `<title>web3d-proto-react</title>`，那個字串是專案內部代號，對外沒有辨識度，因此卡片只會顯示這串英文。
+
+  X（原 Twitter）另有自家的 `twitter:card` 標籤，用來指定卡片樣式（`summary` 為小圖卡片、`summary_large_image` 為大圖卡片）。多數平台讀 OG，X 兩套都讀，因此實務上會同時寫。
+
+- 問：這是 React 單頁應用，畫面內容都由 JavaScript 產生，為什麼分享預覽仍然抓得到資訊？
+
+  答：預覽抓的是「HTML 裡本來就有的東西」，不包含 JavaScript 執行後才產生的內容。多數平台爬蟲只下載 HTML、不執行 JavaScript；本專案由 Vite 打包成單頁應用，`index.html` 裡只有一個空的 `<div id="root">` 與一支 script，3D 畫面與其他文字都是執行 JS 之後才出現，爬蟲看不到。
+
+  之所以仍抓得到，是因為 meta 標籤直接寫在 `index.html` 的 `<head>` 裡，屬於靜態 HTML，不需要執行 JS。反向推論即為設計限制：若把 title 或 description 改成執行期注入（例如用 `document.title = ...` 設定，或靠 React Helmet 之類的函式庫在元件內塞標籤），分享預覽就會抓不到。分享用的 meta 必須存在於靜態 HTML。
+
+- 問：`og:url` 與 `og:image` 為什麼一定要寫完整網址，寫相對路徑不行？
+
+  答：meta 標籤的值是給外部爬蟲讀的純文字，不是瀏覽器解析的資源路徑，因此不會套用打包工具（Vite）的 `base` 設定。本專案部署在 GitHub Pages 的子路徑 `/web3D_proto_react/`，若寫成 `content="/preview.png"`，爬蟲會解讀為網域根目錄的 `preview.png`（`https://maxyeh666.github.io/preview.png`），該檔案不存在，縮圖就是空白。
+
+  Vite 會自動改寫 HTML 中 `src` / `href` 這類資源路徑（本專案的 favicon 就被改寫成 `/web3D_proto_react/favicon.svg`），但 meta 的 `content` 屬性不在改寫範圍內，必須手動寫死完整網址。驗證方式：執行 `npm run build` 後檢查 `dist/index.html`，確認 meta 內容與預期一致。
 
 ---
 

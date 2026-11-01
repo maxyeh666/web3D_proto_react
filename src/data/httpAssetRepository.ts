@@ -1,7 +1,7 @@
 ﻿import type { Asset, AssetInput, AssetSummary } from "../types/asset";
 import type { AssetRepository } from "./assetRepository";
-import { request } from "../api/client";
-import { getAdminToken } from "../api/adminToken";
+import { request, ApiError } from "../api/client";
+import { clearAdminToken, getAdminToken } from "../api/adminToken";
 
 // httpAssetRepository: 遠端資料來源（後端 Asset API）
 // - 打 REST /assets 端點，request/response 形狀即 types/asset.ts 的 Asset
@@ -18,11 +18,19 @@ async function get(id: string): Promise<Asset> {
 async function update(id: string, input: AssetInput): Promise<Asset> {
     const token = getAdminToken();
     // token放在headers
-    return request<Asset>(`/assets/${encodeURIComponent(id)}`, {
-        method: "PUT",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: JSON.stringify(input),
-    });
+    try {
+        return await request<Asset>(`/assets/${encodeURIComponent(id)}`, {
+            method: "PUT",
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: JSON.stringify(input),
+        });
+    } catch (error) {
+        // 401 = token 過期或無效：清掉它，App 會透過 subscribeAdminToken 回到未登入狀態
+        if (error instanceof ApiError && error.status === 401) {
+            clearAdminToken();
+        }
+        throw error;
+    }
 }
 
 const httpAssetRepository: AssetRepository = { list, get, update };

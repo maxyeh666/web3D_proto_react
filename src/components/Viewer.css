@@ -3,7 +3,6 @@
     width: 100%;
     height: 100%;
 }
-
 .camera-reset {
     position: absolute;
     right: 20px;
@@ -19,11 +18,10 @@
     background: #333;
 }
 .asset-save {
-    position: absolute;
-    right: 10px;
-    bottom: 100px;
+    width: 100%;
+    margin-top: 4px;
     padding: 10px 20px;
-    border: 1px solid #444;
+    border: 1px solid #1f6feb;
     border-radius: 6px;
     background: #1f6feb;
     color: #fff;
@@ -64,11 +62,14 @@
 }
 .material-panel {
     position: absolute;
-    top: 16px;
+    top: 68px; /* 讓開頂端的 .asset-bar */
     left: 16px;
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     width: 260px;
-    max-height: calc(100% - 60px);
+    max-height: calc(100% - 140px);
     overflow-y: auto;
     box-sizing: border-box;
     padding: 16px;
@@ -80,14 +81,20 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .material-panel h3 {
-    margin: 0 0 12px;
-    font-size: 16px;
+    margin: 0;
+    font-size: 15px;
     font-weight: 600;
+    color: #d4d4d8;
 }
 .material-panel p {
     margin: 8px 0;
     color: #a1a1aa;
     font-size: 13px;
+}
+/* remote 未登入時的面板底部提示：跟按鈕同一位置，顏色比一般提示亮一階 */
+.material-panel .login-hint {
+    margin: 4px 0 0;
+    color: #d4d4d8;
 }
 .material-item {
     display: flex;
@@ -127,12 +134,7 @@
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
-.appearance-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.appearance-panel h4 {
+.material-panel h4 {
     margin: 4px 0;
     font-size: 14px;
     font-weight: 600;
@@ -183,44 +185,117 @@
 .helper-toggle:hover {
     background: #333;
 }
-.asset-selector {
+/* 資產切換列：桌機置中於畫布頂端，不與面板、登入按鈕重疊 */
+.asset-bar {
+    position: absolute;
+    z-index: 12;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 8px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #3f3f46;
-}
-.asset-selector label {
-    font-size: 12px;
-}
-.asset-selector select,
-.asset-selector button {
-    width: 100%;
     box-sizing: border-box;
-    padding: 8px 10px;
+    padding: 6px 10px;
+    border: 1px solid #3f3f46;
+    border-radius: 10px;
+    background: rgba(24, 24, 27, 0.94);
+    color: #f4f4f5;
+    font-family: sans-serif;
+    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.asset-bar select {
+    height: 32px;
+    min-width: 120px;
+    max-width: 220px;
+    padding: 0 8px;
     border: 1px solid #52525b;
     border-radius: 6px;
     background: #27272a;
     color: #f4f4f5;
+    font: inherit;
 }
-.asset-selector button {
+.asset-bar button {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid #52525b;
+    border-radius: 6px;
+    background: #27272a;
+    color: #f4f4f5;
+    font: inherit;
+    white-space: nowrap;
     cursor: pointer;
 }
-.asset-selector button:disabled,
-.asset-selector select:disabled {
+.asset-bar button:hover:not(:disabled) {
+    background: #3f3f46;
+}
+.asset-bar button:disabled,
+.asset-bar select:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 @media (max-width: 600px) {
-    .material-panel{
-        top: 10px;
-        left: 10px;
-        width: min(260px, calc(100% - 20px));
-        max-height: min(55vh, calc(100% - 100px));
-        padding: 12px;
+    /* 手機三列堆疊：開關列(8px) → 資產列(52px) → 面板(100px) */
+    .asset-bar {
+        top: 52px;
+        left: 8px;
+        right: 8px;
+        transform: none;
+        max-width: none;
+        padding: 6px 8px;
     }
-    .material-item {
+    .asset-bar label {
+        font-size: 12px;
+    }
+    .asset-bar select {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
+        height: 34px;
+    }
+    .asset-bar button {
+        flex: 0 0 auto;
+        height: 34px;
+        padding: 0 10px;
+    }
+    .material-panel {
+        top: 100px;
+        left: 8px;
+        width: min(260px, calc(100% - 20px));
+        max-height: min(45vh, calc(100% - 240px));
         padding: 10px;
+        gap: 6px;
+    }
+    /* 手機才需要收合；桌機面板固定展開 */
+    .material-panel--closed {
+        display: none;
+    }
+    .material-panel--open {
+        display: flex;
+    }
+    .material-panel p {
+        margin: 0;
+    }
+    .material-panel h4 {
+        margin: 0;
+    }
+    /* Material 清單緊湊化 */
+    .material-item {
+        margin-bottom: 0;
+        padding: 8px;
+        gap: 3px;
+    }
+    /* 材質顏色編輯區 */
+    .material-editor {
+        margin-top: 0;
+        padding-top: 8px;
+        gap: 8px;
+    }
+    .material-editor input[type="color"] {
+        flex: 0 0 40px;
+        width: 40px;
+        height: 32px;
     }
     .helper-toggle {
         right: 10px;
@@ -235,8 +310,11 @@
         min-width: calc(100% - 44px);
         overflow-wrap: anywhere;
     }
-    .asset-save,
     .camera-reset {
+        right: 10px;
+        padding: 10px 12px;
+    }
+    .asset-save {
         padding: 10px 12px;
     }
 }

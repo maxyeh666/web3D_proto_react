@@ -4,6 +4,7 @@ import type { Asset, AssetSummary } from "../types/asset";
 import { defaultConfig, normalizeViewConfig } from "../config/view";
 import { assetRepository, DEFAULT_ASSET_ID } from "../data";
 import { DEFAULT_CUBE_MODEL_KEY } from "../constants/model";
+import { ApiError } from "../api/client";
 
 // useAssetConfig: 載入資產並管理編輯狀態
 // - 初始載入：優先 DEFAULT_ASSET_ID，找不到才退回列表第一筆；之後可用資產選擇器切換
@@ -86,23 +87,28 @@ function useAssetConfig() {
                 });
             })
             .catch((error: unknown) => {
-                setSaveError(error instanceof Error ? error.message : String(error));
+                setSaveError(
+                    error instanceof ApiError && error.status === 401
+                        ? "Session expired — please log in again."
+                        : error instanceof Error ? error.message : String(error)
+                );
             })
+
             .finally(() => {
                 setSaving(false);
             });
     };
 
-    const loadSelectedAsset = useCallback(() => {
+    const loadSelectedAsset = useCallback(():Promise<boolean> => {
         // 切換資產：選擇器還沒選或已選同一筆時直接略過，避免重複請求
-        if (!pendingAssetId || pendingAssetId === asset?.id) return;
+        if (!pendingAssetId || pendingAssetId === asset?.id) return Promise.resolve(false);
 
         setLoading(true);
         setSlowLoading(false);
         setLoadError(null);
         setSaveError(null);
 
-        assetRepository
+        return assetRepository
             .get(pendingAssetId)
             .then((loaded) => {
                 // 正規化：遠端舊資料沒有 model，缺了會在 Viewer 取 config.model 時炸掉
@@ -110,9 +116,13 @@ function useAssetConfig() {
                     ...loaded,
                     config: normalizeViewConfig(loaded.config)
                 });
+
+                return true;
             })
             .catch((error: unknown) => {
                 setLoadError(error instanceof Error ? error.message : String(error));
+
+                return false;
             })
             .finally(() => {
                 setLoading(false);

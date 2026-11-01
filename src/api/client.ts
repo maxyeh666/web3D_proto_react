@@ -1,8 +1,19 @@
 // api/client.ts — 後端 API 用的薄 fetch 封裝
 // baseURL 由 Vite 環境變數 VITE_API_BASE_URL 提供（見 .env.example）
 // 注意：VITE_ 開頭的變數會被打包進前端，只放非機密的公開設定
-const REQUEST_TIMEOUT_MS = 65000;
+const REQUEST_TIMEOUT_MS = 65_000;
 const MAX_GET_RETRIES = 2;
+
+// ApiError：帶 HTTP 狀態碼的錯誤。呼叫端才能分辨 401（token 過期）與其他失敗
+class ApiError extends Error {
+    status: number;
+
+    constructor(status: number, message: string) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+    }
+}
 
 function getBaseUrl(): string {
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -100,7 +111,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
     if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new Error(
+        throw new ApiError(
+            response.status,
             `API ${response.status} ${response.statusText}${body ? `: ${body}` : ""}`,
         );
     }
@@ -112,4 +124,4 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     return (await response.json()) as T;
 }
 
-export { request };
+export { request, ApiError };

@@ -1,6 +1,54 @@
-﻿# Changelog
+﻿﻿# Changelog
 
 開發日誌：依日期記錄前端各階段的變更與設計決策。每則包含背景（為何做）、變更（做了什麼）、設計決策（為何這樣做）、已知限制 / 後續。學習筆記另外放在 [LEARNING.md](./LEARNING.md)。
+
+## 2026-11-01 — 資產切換列獨立、登入與外觀開關分離、401 自動登出、分享預覽
+
+**背景**
+- 先前的 Appearance 面板同時包含「資產選擇」（要看哪一份模型，屬於選內容）與材質改色（屬於改外觀），兩個不同功能的控制項共用一個容器，整合後反而看不出為什麼這些控制項要在一起；面板連標題都沒有。
+- 一個「切換資產」的動作要進外觀面板找，local 模式＋窄畫面時外觀按鈕又被資料來源判斷擋住，面板完全打不開。
+- Save 浮在畫布右下角，與編輯區距離遠，登入又與外觀共用同一組開關狀態（開一個就關另一個）；但登入是身分操作、外觀是內容編輯，兩者不該綁在一起。
+- 管理者 token 只存在記憶體，過期後介面仍顯示已登入，按 Save 只得到一句 401 錯誤訊息，登入狀態不會同步回未登入，使用者會在同一個錯誤上重複按。
+- 首頁 `<title>` 仍是專案內部代號 `web3d-proto-react`，沒有 description 與 OG 標籤；把 demo 連結貼到社群或通訊軟體時，分享卡片只有一串英文代號。
+
+**變更**
+- `src/components/AssetBar.tsx`（新檔）：資產切換列抽成獨立元件，畫布頂端置中；`loading` / `saving` 期間鎖住選單與按鈕，重複切換回傳 `false` 忽略。
+- `src/components/Viewer.tsx`：新 props `isInspectorOpen` 取代舊的開關；面板加回 `<h3>Appearance</h3>` 並只留外觀內容（cube 顏色 / Model Materials）；`AssetBar` 放在面板外當 sibling；Save 從畫布右下移進面板底部（`canSave` 才渲染）。
+- `src/components/Viewer.css`：刪 `.appearance-panel` / `.appearance-content` / `.asset-selector`（角色由 `.material-panel` + `.asset-bar` 接手）；面板桌機 `top: 68px`（讓出頂端資產列）、內建 `display:flex`；手機三列堆疊 `開關(8px)→資產列(52px)→面板(100px)`；`--open/--closed` 收合規則只留在手機，桌機面板固定展開。
+- `src/App.tsx`：原本互斥的開關狀態拆成 `isLoginOpen` / `isInspectorOpen`，兩顆開關各自獨立；`Appearance` 控制鈕不再依資料來源隱藏。
+- 無障礙屬性（`src/App.tsx`）：新的 Appearance 開關加上 `aria-expanded={isInspectorOpen}`；登入開關的 `aria-expanded` 改綁 `isLoginOpen`（原為 `showAdminPanel`，屬性本身不變，只是隨開關拆分改名）；登入錯誤訊息補 `ref` 與 `tabIndex={-1}`（`role="alert"` 原本就有）。
+- `src/App.css`：登入面板全尺寸改 deep-dark 主題（同外觀面板底色 / 邊框 / 圓角 / 陰影，input 36px 與按鈕同高）；桌機也改成按鈕＋下拉、預設收起（以往表單常駐壓住畫面）。
+- `src/api/client.ts`：新增並匯出 `ApiError`（帶 HTTP 狀態碼），非 2xx 一律拋 `ApiError`。
+- `src/api/adminToken.ts`：新增 `subscribeAdminToken`；`clearAdminToken` 清值後通知訂閱者。
+- `src/data/httpAssetRepository.ts`：`update` 收到 401 先 `clearAdminToken()` 再拋出。
+- `src/hooks/useAssetConfig.ts`：儲存收到 401 時顯示「Session expired — please log in again.」。
+- `src/App.tsx`：訂閱 token 清除事件，收到就回到未登入並清空密碼欄。
+- `index.html`：title 改為 `Web 3D Viewer — React + Three.js`；新增 description、`og:type` / `og:title` / `og:description` / `og:url` 與 `twitter:card`。
+
+**設計決策**
+- 同一容器只放同一個功能的東西：資產切換列是「選內容」，面板是「改外觀」，登入是「管身分」。之前兩個功能塞同一個面板，才會出現「要換模型卻要去外觀面板找」的情況。
+- 登入不再與外觀共用開關：開關互斥只在「同類搶同一塊空間」時才合理（兩個浮層）；登入是一次性身分操作，不該與常駐編輯面板綁在一起。
+- Save 移入面板底部：寫入是跟著編輯的動作，應該在編輯區正下方，而不是浮在畫布右下和 Reset Camera 並列（後者只影響視角、不動資料）。
+- 資產列不做成「面板分頁」而是獨立頂端列：分頁需要新的面板容器＋手機底部抽屜（拖曳、焦點管理），約 1 天以上工時；獨立列半天可完成，架構一樣乾淨（分頁化列入 Roadmap 優化）。
+- 兩顆開關各綁自己的 `aria-expanded`：這個屬性要反映「它控制的那塊內容現在開著還是收著」，共用一個狀態會讓螢幕報讀軟體唸錯（外觀已收合卻報「已展開」）。
+- 資產切換列不補 ARIA：`<label htmlFor>` 配 `<select id>` 是原生關聯，報讀軟體會唸出「Asset」；載入／儲存期間的 `disabled` 也由瀏覽器自己表達「目前無法操作」。原生語意夠用時再加 `role` / `aria-*`，只會多一份要維護的說法。
+- 401 的處理放在資料層（repository）而不是每個呼叫端：token 生命週期屬於資料層，介面只訂閱結果，避免每個呼叫端各自判斷 401。
+- 用訂閱而非讓 hook 直接改登入狀態：登入狀態住在 `App.tsx`，資料層不該知道介面結構。
+- 這則先不放 `og:image`：縮圖要等首屏截圖或 GIF 產出，先讓標題與描述正確，之後補一行即可。
+- `og:url` 與將來的 `og:image` 寫絕對網址：分享卡片的爬蟲不解析打包工具（Vite）的 `base` 前綴。
+
+**學習筆記**
+3 則，見 [LEARNING.md](./LEARNING.md) 的 2026-11-01 段。
+
+**已知限制**
+- 面板寬度仍固定 260px，材質名稱很長時會換行（既有行為，未改）。
+- `loginErrorRef` 目前只綁 ref 沒有實際聚焦用途，`role="alert"` 已足以朗讀；要移除或補焦點邏輯另外決定。
+- `canEditConfig` 已包含 `canSave`：remote 模式未登入時顏色選擇器、Reset Color 與 Asset 選擇列都會鎖住，且顯示「Log in to edit and save this asset.」；面板底部顯示「Log in to save changes.」代替 Save 按鈕。
+- 狀態訊息改由「誰負責」切分：底部浮條只負責過程中（`loading/saving`）；面板內提示只講最終狀態（未登入／讀取失敗）。未登入時不會再看到「Loading asset…」。
+- 分享卡片目前沒有縮圖（`og:image` 待補）。
+- GitHub Pages 有 CDN 快取，改完 meta 後分享預覽不會立刻更新。
+
+---
 
 ## 2026-10-30 — 材質顏色存回後端、資產選擇器、GLB 載入失敗的 Retry
 
@@ -35,7 +83,8 @@
 - 切換資產不會套用該資產的 `camera`：fiber 的 `camera` prop 只在 Canvas 初始化時建立 PerspectiveCamera，之後改 `config.camera` 不會更新畫面；目前得按 Reset Camera。要自動套用得用 key 重建 Canvas（會重載模型）或在 Scene 內用 `useThree` + `useEffect` 同步。
 - 材質覆寫跨模型失效：覆寫 key 是節點路徑，換模型整組重算；即使 Save 已把覆寫寫回後端，切到別的模型仍對不上。
 - 選擇器沒有「未儲存變更」警告：切換資產前未 Save 的編輯會被直接蓋掉。
-- 後端資料庫目前只有 1 筆資產：remote 模式的選擇器只有一個選項，要展示多筆需新增 seed 資產。
+- 後端線上資料庫目前有兩筆資產（預設立方體與鞋模型），第二筆為手動寫入、不在 migration 內；
+  以 migration 重建資料庫只會得到一筆。（2026-11-01 更新，seed 決議不做）
 - 載入失敗時 `asset` 維持上一筆成功值（只在成功時 `setAsset`），`currentAssetId` 也維持舊值；錯誤僅由 `loadError` 呈現。
 - 無障礙缺口：3D 畫布本身無鍵盤操作（OrbitControls 只吃滑鼠，鍵盤無法旋轉視角）；按下 Retry 後焦點留在原地而非移往新的狀態。另材質槽清單用 `aria-pressed` 表達單選屬於折衷，嚴格做法是 `role="radiogroup"` + `role="radio"` 並以方向鍵切換。
 
@@ -202,7 +251,7 @@
 - `.github/workflows/deploy.yml`：`Build` 之前新增 `npm run lint` 步驟
 
 **設計決策**
-- 逾時訂 65 秒：Render 冷啟動加上 Neon 喚醒的實測等待在數十秒量級，取比最壞情況再寬一點；太短會把「正在啟動」誤判成失敗，太長則失去逾時的意義
+- 逾時訂 65 秒：Render 冷啟動加上 Neon 喚醒的實測等待在數十秒量級，取比最壞情況再寬一點；太短會把「正在啟動」誤判成失敗，太長則失去逾時的意義（2026-11-01 實測：後端休眠後首次請求約 50–52 秒，大多在 1 分鐘內，餘裕約 13 秒）
 - 只有 GET 自動重試：PUT 是使用者主動按下的寫入，重送等於再寫一次，成功時的回應也可能被誤認為第二次操作；閱讀類請求重送沒有副作用
 - 重試 2 次、間隔 1 秒與 2 秒：Render 冷啟動最常見的失敗是第一次連線直接被拒，短時間內再試就會過；更長的退避只是讓使用者多等
 - 重試前先 `response.body?.cancel()`：不讀 body 就丟掉 response，連線不會被釋放，重試幾次就把可用連線佔滿

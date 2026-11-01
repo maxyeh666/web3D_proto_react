@@ -1,4 +1,4 @@
-# Web 3D Viewer
+﻿# Web 3D Viewer
 
 React + Three.js 基礎 3D Viewer Prototype。
 
@@ -11,21 +11,21 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 - ambientLight + directionalLight + 光源位置標記（Lights.tsx）
 - OrbitControls 視角控制 + Reset Camera
 - axesHelper + gridHelper
-- Appearance 面板：cube 模式改 Cube 顏色，glTF 模式列出材質並改選取項目的顏色（同一面板；資產未載入時為唯讀）
-- ViewConfig 集中式狀態管理
+- Appearance 面板：只放當前資產的外觀（cube 模式改 Cube 顏色，glTF 模式列出材質並改選取項目的顏色）；資產未載入時為唯讀
+- 資產切換列（畫布頂端）：`Asset` 下拉 + Load Asset，切換檢視多筆資產（local 模式有兩筆示範資產；remote 模式依後端列表）
 - Camera / Asset configuration 分離
 - AssetRepository 資料存取的固定寫法：local（存在記憶體）/ remote（後端 API）可以換（data/、api/）
 - Loading / Error State + Save（寫回資料來源）
-- 請求逾時 65 秒；GET 失敗自動重試（最多 3 次、指數退避）
+- 請求逾時 65 秒；GET 失敗自動重試（最多嘗試 3 次，即重試 2 次、指數退避）
 - 慢速載入提示與 Retry（載入 / 儲存錯誤分開顯示）
 - 全螢幕 Canvas 版型
-- 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save；窄螢幕下面板可收合
+- 管理者登入（僅設定 `VITE_API_BASE_URL` 的遠端模式時顯示）：登入後才能 Save；桌機與窄螢幕都以按鈕控制收合（預設收起）；token 過期收到 401 會自動回到未登入
 - glTF 模型載入：依資產的 `modelKey` 向後端 `GET /models/:modelKey` 拿檔；`modelKey` 為 `default-cube` 時顯示內建立方體
 - 模型下載進度：下載中顯示百分比（Canvas 外的 DOM 浮層）
-- 資產選擇器：下拉選單 + Load Asset，切換檢視多筆資產（local 模式有兩筆示範資產；remote 模式依後端列表）
 - 材質改色寫回資產設定：改色存在 `config.model.materialColorOverrides`，Save 後重新整理仍保留；Reset Color 刪掉該筆回到 GLB 原色
 - 輔助顯示開關：格線 / 座標軸 / 光源標記一鍵顯示或隱藏
 - 窄螢幕（<=600px）排版：控制項與外觀面板重新定位、狀態訊息移到畫面下方
+- 首頁分享預覽：title / description / OG 標籤（index.html）
 
 ## Development Log
 
@@ -76,25 +76,26 @@ Backend-side:
 
 - [x] glTF 模型載入（模型由後端提供；`modelKey` 為 `default-cube` 時退回內建立方體）
 - [x] 模型載入進度（下載中顯示百分比）
-- [x] Asset 選擇介面（下拉選單 + Load Asset；切換時載入中鎖定選單，且不套用該資產的 camera，需按 Reset Camera，屬已知限制）
+- [x] Asset 選擇介面（畫布頂端資產切換列，下拉選單 + Load Asset；切換時載入中鎖定選單，且不套用該資產的 camera，需按 Reset Camera，屬已知限制）
 - [x] 材質改色寫回資產設定（`config.model.materialColorOverrides`；Save 後重新整理仍保留，Reset Color 回到 GLB 原色）
 - [x] GLB 載入失敗 fallback 與 Retry（失敗退回立方體並顯示原因，`useGLTF.clear()` 清快取後重載）
 - [x] 模型依 bounding box 對齊原點平面（最長邊縮放至 2 單位、底部貼齊 y=0 格線）
 - [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
 - [x] 窄螢幕可操作（`<=600px` 媒體查詢：面板與控制項重新定位、狀態訊息移到下方）
-- [ ] 切換資產的競態處理（切換中按鈕已鎖定，但沒有取消進行中的請求）
-- [ ] 儲存中鎖定資產選擇器（目前只鎖 `loading`，`saving` 期間仍可切換）
-- [ ] 首頁 title / meta 與分享預覽（`index.html` 仍是 `web3d-proto-react`，缺 description 與 OG 標籤）
+- [x] 儲存中鎖定資產選擇器（`loading` 與 `saving` 都鎖住 `assetList` 相關控制）
+- [x] 首頁 title / meta 與分享預覽（`index.html`：title、description、OG 標籤與 `twitter:card`；縮圖待首屏 GIF 產出後補）
 
 以下為優化 / 後續調整，不在本階段驗收範圍：
 
 - [ ] 未儲存變更提示（切換資產前未 Save 的編輯會被直接蓋掉）
 - [ ] 切換資產時套用該資產的 camera（目前需按 Reset Camera）
+- [ ] 切換資產的競態處理（切換中按鈕已鎖定，但沒有取消進行中的請求；`api/client.ts` 已支援呼叫端傳 `signal`）
 - [ ] 輔助顯示各自獨立開關（格線 / 座標軸 / 光源標記分開控制；目前為單一總開關）
 - [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
 - [ ] 手機版控制項改流動版面（目前仍為固定 px 定位）
 - [ ] 記住上次選擇的資產
 - [ ] Bundle 拆分與載入最佳化
+- [ ] Inspector 分頁化（暫不做）：把資產切換列與外觀面板收進同一個側邊面板的分頁（手機改底部抽屜），登入改全螢幕對話框；目前資產切換是獨立頂端列。成本約 1 天以上工時。
 
 ## Non-goals
 
@@ -181,3 +182,4 @@ glTF 模式的材質改色寫回 Asset config（`config.model.materialColorOverr
 - 逾時 65 秒，時間到即中止請求（`src/api/client.ts`）
 - 只有 GET 會重試：連線錯誤或回應 408 / 429 / 500 / 502 / 503 / 504 時重試，最多 3 次、間隔 1 秒 / 2 秒；PUT 不重試，避免重複寫入
 - 載入超過 5 秒顯示慢速提示（「Still loading… the backend may be waking up.」涵蓋後端冷啟動；切換資產同樣會啟動計時）；載入失敗顯示錯誤與 Retry，儲存失敗單獨顯示、不提供 Retry
+- 冷啟動實測（2026-11-01）：後端休眠後首次請求約 50–52 秒，大多在 1 分鐘內；65 秒逾時與 5 秒慢速提示足以涵蓋，不需使用者手動重試

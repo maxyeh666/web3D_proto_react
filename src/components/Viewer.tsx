@@ -7,6 +7,8 @@ import Scene from "./3d/Scene"
 import "./Viewer.css"
 import { useAssetConfig } from "../hooks/useAssetConfig"
 import { ErrorBoundary } from "./ErrorBoundary"
+import AssetBar from "./AssetBar"
+import { isRemoteDataSource } from "../data";
 import { getModelUrl, isDefaultCubeModel } from "../constants/model"
 import type { ModelMaterialInfo } from "../types/modelMaterial"
 
@@ -19,8 +21,13 @@ function ModelProgressOverlay({ visible }: { visible: boolean }) {
 // Viewer: 全螢幕 Canvas 容器
 // Canvas camera — position: 相機世界座標 / fov: 垂直視角（度）
 // config 來自資料層（local 預設 / 後端 remote），編輯後按 Save 寫回
-export default function Viewer(
-    { canSave } : {canSave : boolean}
+export default function Viewer({
+    canSave,
+    isInspectorOpen,
+}: {
+    canSave: boolean,
+    isInspectorOpen: boolean,
+}
 ) {
     const {
         assetList,
@@ -51,9 +58,9 @@ export default function Viewer(
     } | null>(null);
     const [modelRetryKey, setModelRetryKey] = useState(0);
     const isDefaultCube = isDefaultCubeModel(modelKey);
-    // 沒有載入成功的資產時，config 只是 defaultConfig；此時改值無處可寫（setConfig 會 no-op），UI 必須鎖住
-    const canEditConfig = !loading && !loadError;
-
+    // 編輯鎖定條件：載入中、回傳錯誤、寫入中都不准改；
+    // remote 未登入（canSave=false）也鎖住，避免改了顏色卻沒有 Save 可以存
+    const canEditConfig = !loading && !loadError && !saving && canSave;
     // 覆寫表同時給 Scene（套色）與面板（顯示目前顏色）用，抽出來避免兩邊各取一次
     const materialColorOverrides = config.model.materialColorOverrides;
     // cube 只在兩種情況出現：資產本身是內建方塊，或 GLB 載入失敗 fallback（顏色由這裡提供）
@@ -93,6 +100,15 @@ export default function Viewer(
         setMaterials([]);
         setSelectedMaterialId("");
     }, [currentAssetId, modelKey])
+
+    const handleLoadSelectedAsset = () => {
+        loadSelectedAsset().then((loaded) => {
+            if (!loaded) return;
+            // 切換資產成功時清掉材質資料，否則面板會留著上一個模型的材質（選中的 id 也已經失效）
+            setMaterials([]);
+            setSelectedMaterialId("");
+        })
+    };
 
     const resetCamera = () => {
         if (controlRef.current) {
@@ -146,43 +162,30 @@ export default function Viewer(
                 目前得按 Reset Camera。要自動套用得用 key 重建 Canvas（會重載模型，不建議）
                 或在 Scene 內用 useThree + useEffect 同步 camera 與 controls。 */}
             <ErrorBoundary>
-                {/* 材質面板：資產選擇 + （cube 模式改方塊顏色 / 模型模式列出材質並改選取項目的顏色） */}
-                {/* 整合預設方塊與GLB模型介面 */}
-                {(!isFallback || materials.length > 0) && (
-                    <div className="material-panel appearance-panel">
+                {/* 畫布頂端的資產切換列：選要看哪一份資產，與下面的外觀編輯分開 */}
+                {/* cube 模式改方塊顏色，模型模式列出材質並改選取項目的顏色；兩種模式共用同一塊面板 */}
+                {assetList && assetList.length > 0 && (
+                    <AssetBar
+                        assetList={assetList}
+                        pendingAssetId={pendingAssetId}
+                        currentAssetId={currentAssetId}
+                        loading={loading}
+                        saving={saving}
+                        onSelectAsset={setPendingAssetId}
+                        onLoadAsset={handleLoadSelectedAsset}
+                    />
+                )}
+
+                {/* Appearance 面板：只放當前資產的外觀，底部是寫入動作；未登入時也顯示，用來放登入提示 */}
+                {(!isFallback || materials.length > 0 || (isRemoteDataSource && !canSave)) && (
+                    <div className={`material-panel ${isInspectorOpen ? "material-panel--open" : "material-panel--closed"}`}>
                         <h3>Appearance</h3>
 
-                        <div className="asset-selector">
-                            <label htmlFor="asset-select">Asset:</label>
-
-                            <select
-                                id="asset-select"
-                                value={pendingAssetId}
-                                disabled={loading}
-                                onChange={(event) => {
-                                    setPendingAssetId(event.target.value)
-                                }}
-                            >
-                                {assetList?.map((asset) => (
-                                    <option key={asset.id} value={asset.id}>
-                                        {asset.name}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <button
-                                type="button"
-                                onClick={loadSelectedAsset}
-                                disabled={loading || !pendingAssetId || pendingAssetId === currentAssetId}
-                            >
-                                {loading ? "Loading..." : "Load Asset"}
-                            </button>
-                        </div>
-
-
-                        {!canEditConfig && (
+                        {!canEditConfig && !loading && !saving && (
                             <p>
-                                {loading ? "Loading asset…" : "Asset not loaded — appearance is read-only."}
+                                {!canSave
+                                    ? "Log in to edit and save this asset."
+                                    : "Asset not loaded — appearance is read-only."}
                             </p>
                         )}
 
@@ -227,6 +230,7 @@ export default function Viewer(
                                             id="material-color"
                                             type="color"
                                             value={selectedMaterial.color}
+                                            disabled={!canEditConfig}
                                             onChange={(event) => {
                                                 setMaterialColor(effectiveSelectedId, event.target.value)
                                             }}
@@ -241,6 +245,15 @@ export default function Viewer(
                                     </div>
                                 )}
                             </>
+                        )}
+
+                        {/* 寫入：跟編輯區放在同一塊面板 */}
+                        {canSave ? (
+                            <button className="asset-save" onClick={save} disabled={!canEditConfig || saving}>
+                                {saving ? "Saving…" : "Save"}
+                            </button>
+                        ) : (
+                            <p className="login-hint">Log in to save changes.</p>
                         )}
                     </div>
                 )}
@@ -259,11 +272,16 @@ export default function Viewer(
                 </Canvas>
             </ErrorBoundary>
 
-            {loading && 
+            {(loading || saving) && (
                 <div className="viewer-status" role="status" aria-live="polite">
-                    { slowLoading ? "Still loading… the backend may be waking up. Please wait." : "Loading asset..." }
+                    {saving
+                        ? "Saving asset..."
+                        : slowLoading
+                            ? "Still loading… the backend may be waking up. Please wait."
+                            : "Loading asset..."
+                    }
                 </div>
-            }
+            )}
             {/* 設定載入完成後才輪到模型檔；cube 模式不載入模型檔 */}
             <ModelProgressOverlay visible={!loading && !isDefaultCube} />
             {/* 讀取錯誤 */}
@@ -285,12 +303,6 @@ export default function Viewer(
                 <div className="viewer-status viewer-status-error" role="status" aria-live="polite">
                     Save failed: {saveError} — press Save to try again
                 </div>
-            )}
-
-            {canSave && (
-                <button className="asset-save" onClick={save} disabled={!canEditConfig || saving}>
-                    {saving ? "Saving…" : "Save"}
-                </button>
             )}
             {/* 攝影機歸位 */}
             <button className="camera-reset" onClick={resetCamera}>
