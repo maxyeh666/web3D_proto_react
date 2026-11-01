@@ -50,7 +50,7 @@ Demo: https://maxyeh666.github.io/web3D_proto_react/
 
 ### Phase 2 — Backend Integration
 
-Backend 將於獨立 Repository 開發。
+Backend 在獨立 repository 開發（[web3D_proto_backend](https://github.com/maxyeh666/web3D_proto_backend)），下列項目均已完成並部署。
 
 Frontend-side:
 
@@ -65,6 +65,9 @@ Backend-side:
 
 - [x] Asset API（SQL 資料表存模型）
 - [x] Load Assets from Backend
+- [x] 管理者登入 `POST /auth/login` 與寫入權限（`PUT /assets/:id` 需管理者 token）
+- [x] 模型端點 `GET /models/:modelKey`（資產存 `modelKey`，不存絕對 URL）
+- [x] 部署（Render + 雲端 PostgreSQL）
 
 ### Phase 3 — 3D / Application
 
@@ -74,15 +77,22 @@ Backend-side:
 - [x] glTF 模型載入（模型由後端提供；`modelKey` 為 `default-cube` 時退回內建立方體）
 - [x] 模型載入進度（下載中顯示百分比）
 - [x] Asset 選擇介面（下拉選單 + Load Asset；切換時載入中鎖定選單，且不套用該資產的 camera，需按 Reset Camera，屬已知限制）
-- [ ] 切換時的非同步正確性（競態、儲存中鎖定選單、未存變更提示）
-- [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
-- [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
-- [ ] 輔助顯示各自獨立開關（格線 / 座標軸 / 光源標記分開控制）
+- [x] 材質改色寫回資產設定（`config.model.materialColorOverrides`；Save 後重新整理仍保留，Reset Color 回到 GLB 原色）
+- [x] GLB 載入失敗 fallback 與 Retry（失敗退回立方體並顯示原因，`useGLTF.clear()` 清快取後重載）
 - [x] 模型依 bounding box 對齊原點平面（最長邊縮放至 2 單位、底部貼齊 y=0 格線）
+- [x] 輔助顯示總開關（格線 / 座標軸 / 光源標記一起顯示或隱藏）
+- [x] 窄螢幕可操作（`<=600px` 媒體查詢：面板與控制項重新定位、狀態訊息移到下方）
+- [ ] 切換資產的競態處理（切換中按鈕已鎖定，但沒有取消進行中的請求）
+- [ ] 儲存中鎖定資產選擇器（目前只鎖 `loading`，`saving` 期間仍可切換）
+- [ ] 首頁 title / meta 與分享預覽（`index.html` 仍是 `web3d-proto-react`，缺 description 與 OG 標籤）
 
-以下為後續優化，未包含在本階段：
+以下為優化 / 後續調整，不在本階段驗收範圍：
 
-- [ ] 手機版型（已加 600px 媒體查詢與管理者面板收合；控制項仍為固定 px 定位）
+- [ ] 未儲存變更提示（切換資產前未 Save 的編輯會被直接蓋掉）
+- [ ] 切換資產時套用該資產的 camera（目前需按 Reset Camera）
+- [ ] 輔助顯示各自獨立開關（格線 / 座標軸 / 光源標記分開控制；目前為單一總開關）
+- [ ] Asset Information Panel（名稱 / 模型來源 / mesh 與頂點數）
+- [ ] 手機版控制項改流動版面（目前仍為固定 px 定位）
 - [ ] 記住上次選擇的資產
 - [ ] Bundle 拆分與載入最佳化
 
